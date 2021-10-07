@@ -23,6 +23,7 @@
  */
 package org.cloudsimplus.examples;
 
+import org.cloudbus.cloudsim.allocationpolicies.VmAllocationPolicy;
 import org.cloudbus.cloudsim.brokers.DatacenterBroker;
 import org.cloudbus.cloudsim.brokers.DatacenterBrokerSimple;
 import org.cloudbus.cloudsim.cloudlets.Cloudlet;
@@ -86,13 +87,18 @@ public class BasicFirstExample {
         simulation = new CloudSim();
         datacenter0 = createDatacenter();
 
+        DatacenterSimple datacenterSimple = (DatacenterSimple) createDatacenter();
+     //datacenterSimple.setVmAllocationPolicy(... implementação da politica de alocação)
+
         //Creates a broker that is a software acting on behalf a cloud customer to manage his/her VMs and Cloudlets
+        //BrokerSimple irá alocar o cloudlet nas vms com politica round-robin
         broker0 = new DatacenterBrokerSimple(simulation);
 
         vmList = createVms();
         cloudletList = createCloudlets();
         broker0.submitVmList(vmList);
         broker0.submitCloudletList(cloudletList);
+      //  broker0.setVmMapper((cloudlet -> vmList.sort((vml))))
 
         simulation.start();
 
@@ -111,6 +117,7 @@ public class BasicFirstExample {
         }
 
         //Uses a VmAllocationPolicySimple by default to allocate VMs
+        //VmAllocationPolicySimple irá alocar o host com mais PEs livres para a VM
         return new DatacenterSimple(simulation, hostList);
     }
 
@@ -136,6 +143,8 @@ public class BasicFirstExample {
         final List<Vm> list = new ArrayList<>(VMS);
         for (int i = 0; i < VMS; i++) {
             //Uses a CloudletSchedulerTimeShared by default to schedule Cloudlets
+            //CloudletSchedulerTimeShared irá dividir o tempo de cpu igualmente entre os jobs, de forma não preemptiva.
+            // É adicionada uma penalidade para troca de contexto
             final Vm vm = new VmSimple(HOST_MIPS, VM_PES);
             vm.setRam(512).setBw(1000).setSize(10_000);
             list.add(vm);
@@ -151,12 +160,15 @@ public class BasicFirstExample {
         final List<Cloudlet> list = new ArrayList<>(CLOUDLETS);
 
         //UtilizationModel defining the Cloudlets use only 50% of any resource all the time
+        //a utilização de processamento de cada job será de 50%
+        //como a função setUtilizationUpdateFunction não foi chamada, esse será o uso até o cloudlet terminar
         final UtilizationModelDynamic utilizationModel = new UtilizationModelDynamic(0.5);
-
+        //utilizationModel.setUtilizationUpdateFunction((UtilizationModelDynamic modelDynamic)-> Math.abs(Math.sin(modelDynamic.getTimeSpan())));
         for (int i = 0; i < CLOUDLETS; i++) {
             final Cloudlet cloudlet = new CloudletSimple(CLOUDLET_LENGTH, CLOUDLET_PES, utilizationModel);
             cloudlet.setSizes(1024);
             list.add(cloudlet);
+
         }
 
         return list;
