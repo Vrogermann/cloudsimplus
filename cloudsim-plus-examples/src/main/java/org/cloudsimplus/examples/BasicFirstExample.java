@@ -87,7 +87,7 @@ public class BasicFirstExample {
         simulation = new CloudSim();
         datacenter0 = createDatacenter();
 
-        DatacenterSimple datacenterSimple = (DatacenterSimple) createDatacenter();
+        //DatacenterSimple datacenterSimple = (DatacenterSimple) createDatacenter();
      //datacenterSimple.setVmAllocationPolicy(... implementação da politica de alocação)
 
         //Creates a broker that is a software acting on behalf a cloud customer to manage his/her VMs and Cloudlets
