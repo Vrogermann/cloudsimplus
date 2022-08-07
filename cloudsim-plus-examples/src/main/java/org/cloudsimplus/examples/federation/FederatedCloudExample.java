@@ -47,6 +47,7 @@ import org.cloudbus.cloudsim.vms.VmSimple;
 import org.cloudsimplus.builders.tables.CloudletsTableBuilder;
 import org.cloudsimplus.traces.ufpel.BoT;
 import org.cloudsimplus.util.Log;
+import org.cloudsimplus.util.*;
 
 import java.util.*;
 
@@ -56,8 +57,6 @@ import static org.cloudbus.cloudsim.util.MathUtil.positive;
 
 public class FederatedCloudExample {
     private static final String BOT_CSV_FILE = "workload/ufpel/bot.csv";
-    private record Coordinates(Double latitude, Double longitude){}
-    private record University(String name, Coordinates coordinates, Integer id){}
     private static final int UNIVERSITIES = 10;
     private static final List<String> UNIVERSITY_NAMES = Arrays.asList(
         "Universidade Federal do Rio de Janeiro",
@@ -81,17 +80,17 @@ public class FederatedCloudExample {
         1,
         3,
         2);
-    private static final List<Coordinates> UNIVERSITY_COORDINATES = Arrays.asList(
-        new Coordinates(-22.862312050419078, -43.22317329523859),
-        new Coordinates(-23.598773, -46.643422),
-        new Coordinates(-19.870581085957383, -43.967746630914675),
-        new Coordinates(-30.033907564026826, -51.21900538654607),
-        new Coordinates(-26.23485949891767, -48.88401144670387),
-        new Coordinates(-21.983975081254595, -47.88152180795202),
-        new Coordinates(-25.426871793799748, -49.26175798375143),
-        new Coordinates(-8.01710961795856, -34.950500616736285),
-        new Coordinates(-13.00365838049915, -38.509963739614044),
-        new Coordinates(-21.776859501069005, -43.36904141993076));
+    private static final List<Records.Coordinates> UNIVERSITY_COORDINATES = Arrays.asList(
+        new Records.Coordinates(-22.862312050419078, -43.22317329523859),
+        new Records.Coordinates(-23.598773, -46.643422),
+        new Records.Coordinates(-19.870581085957383, -43.967746630914675),
+        new Records.Coordinates(-30.033907564026826, -51.21900538654607),
+        new Records.Coordinates(-26.23485949891767, -48.88401144670387),
+        new Records.Coordinates(-21.983975081254595, -47.88152180795202),
+        new Records.Coordinates(-25.426871793799748, -49.26175798375143),
+        new Records.Coordinates(-8.01710961795856, -34.950500616736285),
+        new Records.Coordinates(-13.00365838049915, -38.509963739614044),
+        new Records.Coordinates(-21.776859501069005, -43.36904141993076));
 
     private static final List<Integer>  HOSTS_PER_DATACENTER = Arrays.asList(
         10,
@@ -131,16 +130,26 @@ public class FederatedCloudExample {
         Log.setLevel(Level.ALL);
 
         simulation = new CloudSim();
-        Set<University> universities = new HashSet<>();
+        List<Records.University> universities = new ArrayList<>();
         CloudFederation federation = new CloudFederation("Federal Universities of Brazil",0L);
         for (int currentUniversity = 0; currentUniversity < UNIVERSITIES; currentUniversity++) {
-            universities.add(new University(UNIVERSITY_NAMES.get(currentUniversity),UNIVERSITY_COORDINATES.get(currentUniversity),  currentUniversity));
+            universities.add(new Records.University(UNIVERSITY_NAMES.get(currentUniversity),
+                UNIVERSITY_COORDINATES.get(currentUniversity),
+                currentUniversity));
         }
         universities.forEach(university->{
-            FederationMember federationMember = new FederationMember(university.name, university.id, federation);
-            federation.addMember(federationMember);
-            federationMember.setDatacenters(Set.copyOf(createDatacentersAndBroker(federationMember)));
+            FederationMember federationMember = new FederationMember(university.name(),
+                university.id(),
+                federation,
+                university.coordinates());
 
+            federation.addMember(federationMember);
+            federationMember.setBroker(new FederatedDatacenterBrokerSimple(simulation,
+                getFederatedDatacenterComparator(),
+                getFederatedDatacenterBrokerComparator(),federationMember));
+
+            federationMember.setDatacenters(Set.copyOf(createDatacenters(federationMember)));
+            federationMember.getBroker().submitCloudletList(createCloudlets());
         });
 
 
@@ -148,15 +157,15 @@ public class FederatedCloudExample {
         //BrokerSimple irá alocar o cloudlet nas vms com politica round-robin
 //        brokers = createBrokers(datacenters);
 //        brokers.forEach(broker->broker.submitVmList(datacenterVmList.get(Long.valueOf(broker.getName()))));
-        brokers.forEach(broker->broker.submitCloudletList(createCloudlets()));
+        //brokers.forEach(broker->broker.submitCloudletList(createCloudlets()));
 
 
       //  broker0.setVmMapper((cloudlet -> vmList.sort((vml))))
 
         simulation.start();
 
-        final List<Cloudlet> finishedCloudlets = brokers.stream().
-            map(DatacenterBroker::getCloudletFinishedList).
+        final List<Cloudlet> finishedCloudlets = federation.getMembers().stream().
+            map(member->member.getBroker().getCloudletFinishedList()).
             reduce((accumulator, list)-> {
                 accumulator.addAll(list);
                 return accumulator;
@@ -164,15 +173,7 @@ public class FederatedCloudExample {
         new CloudletsTableBuilder(finishedCloudlets).build();
     }
 
-    private List<DatacenterBroker> createBrokers(List<DatacenterSimple> datacenters){
-        List<DatacenterBroker> brokers = new ArrayList<>();
-        for(int currentDatacenter = 0; currentDatacenter < datacenters.size(); currentDatacenter++) {
-            FederatedDatacenterBrokerSimple broker = new FederatedDatacenterBrokerSimple(simulation);
-            brokers.add(broker);
-            broker.setName(String.valueOf(currentDatacenter));
-        }
-        return brokers;
-    }
+
 
     /**
      * creates an id for a federatedHost
@@ -188,10 +189,15 @@ public class FederatedCloudExample {
     /**
      * Creates a Datacenter and its Hosts, and one VM for each Host.
      */
-    private List<FederatedDatacenter> createDatacentersAndBroker(FederationMember federationMember) {
+    public static Comparator<FederatedDatacenterBrokerSimple> getFederatedDatacenterBrokerComparator(){
+        return  Comparator.comparingDouble(FederatedDatacenterBrokerSimple::getAverageDatacenterCpuUtilization).reversed();
+    }
+    public static Comparator<FederatedDatacenter> getFederatedDatacenterComparator(){
+       return  Comparator.comparingDouble(FederatedDatacenter::getAverageCpuPercentUtilization).reversed();
+    }
+    private List<FederatedDatacenter> createDatacenters(FederationMember federationMember) {
         List<FederatedDatacenter> datacenters = new ArrayList<>();
-        FederatedDatacenterBrokerSimple broker = new FederatedDatacenterBrokerSimple(simulation);
-        federationMember.setBroker(broker);
+        federationMember.setBroker(federationMember.getBroker());
         for(int currentDatacenter = 0; currentDatacenter < UNIVERSITY_DATACENTER_AMOUNT.get(federationMember.getId()); currentDatacenter++) {
             final List<Host> hostList = new ArrayList<>();
 
@@ -199,11 +205,10 @@ public class FederatedCloudExample {
                 Host host = createHost();
                 host.setId(createHostId(federationMember.getId(), currentDatacenter, currentHost));
                 hostList.add(host);
-                host.createVm(createVm(host, currentDatacenter,federationMember.getId()));
+                federationMember.getBroker().submitVm(createVm(host, currentDatacenter,federationMember.getId()));
             }
 
-            //Uses a VmAllocationPolicySimple by default to allocate VMs
-            //VmAllocationPolicySimple irá alocar o host com mais PEs livres para a VM
+
             FederatedDatacenter federatedDatacenter = new FederatedDatacenter(simulation, hostList, federationMember);
             federatedDatacenter.setName(String.valueOf(currentDatacenter));
             datacenters.add(federatedDatacenter);

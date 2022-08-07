@@ -2,6 +2,7 @@ package org.cloudbus.cloudsim.federation;
 
 import org.cloudbus.cloudsim.brokers.FederatedDatacenterBrokerSimple;
 import org.cloudbus.cloudsim.datacenters.FederatedDatacenter;
+import org.cloudsimplus.util.Records;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -13,6 +14,7 @@ public class FederationMember {
     private Set<FederatedDatacenter> datacenters;
     private CloudFederation federation;
     private FederatedDatacenterBrokerSimple broker;
+    private Records.Coordinates coordinates;
 
     /**
      * Creates a member of a Cloud Federation
@@ -20,13 +22,15 @@ public class FederationMember {
      * @param id of the member
      * @param datacenters set of all the datacenters of the member
      * @param federation federation the member is part of
-     * if federation is non-null, also calls the method {@link CloudFederation#addMember(FederationMember)}}
+* if federation is non-null, also calls the method {@link CloudFederation#addMember(FederationMember)}}
+     * @param coordinates
      */
-    public FederationMember(String name, Integer id, Set<FederatedDatacenter> datacenters, CloudFederation federation) {
+    public FederationMember(String name, Integer id, Set<FederatedDatacenter> datacenters, CloudFederation federation, Records.Coordinates coordinates) {
         this.name = name;
         this.id = id;
         this.datacenters = datacenters;
         this.federation = federation;
+        this.coordinates = coordinates;
         if(federation != null){
             federation.addMember(this);
         }
@@ -70,16 +74,26 @@ public class FederationMember {
         this.federation = federation;
     }
 
-    public FederationMember(String name, Integer id, CloudFederation federation) {
+    public Records.Coordinates getCoordinates() {
+        return coordinates;
+    }
+
+    public void setCoordinates(Records.Coordinates coordinates) {
+        this.coordinates = coordinates;
+    }
+
+    public FederationMember(String name, Integer id, CloudFederation federation, Records.Coordinates coordinates) {
         this.name = name;
         this.id = id;
         this.federation = federation;
+        this.coordinates = coordinates;
         this.datacenters= new HashSet<>();
     }
 
     public Set<FederatedDatacenter> getDatacenters() {
         return datacenters;
     }
+
 
     public void setDatacenters(Set<FederatedDatacenter> datacenters) {
         this.datacenters = datacenters;

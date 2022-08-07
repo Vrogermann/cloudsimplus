@@ -23,6 +23,7 @@
  */
 package org.cloudsimplus.examples;
 
+import ch.qos.logback.classic.Level;
 import org.cloudbus.cloudsim.allocationpolicies.VmAllocationPolicy;
 import org.cloudbus.cloudsim.brokers.DatacenterBroker;
 import org.cloudbus.cloudsim.brokers.DatacenterBrokerSimple;
@@ -39,6 +40,7 @@ import org.cloudbus.cloudsim.utilizationmodels.UtilizationModelDynamic;
 import org.cloudbus.cloudsim.vms.Vm;
 import org.cloudbus.cloudsim.vms.VmSimple;
 import org.cloudsimplus.builders.tables.CloudletsTableBuilder;
+import org.cloudsimplus.util.Log;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -82,7 +84,7 @@ public class BasicFirstExample {
     private BasicFirstExample() {
         /*Enables just some level of log messages.
           Make sure to import org.cloudsimplus.util.Log;*/
-        //Log.setLevel(ch.qos.logback.classic.Level.WARN);
+        Log.setLevel(Level.ALL);
 
         simulation = new CloudSim();
         datacenter0 = createDatacenter();

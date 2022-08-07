@@ -13,52 +13,73 @@ import org.cloudbus.cloudsim.datacenters.Datacenter;
 import org.cloudbus.cloudsim.datacenters.FederatedDatacenter;
 import org.cloudbus.cloudsim.federation.CloudFederation;
 import org.cloudbus.cloudsim.federation.FederationMember;
+import org.cloudbus.cloudsim.hosts.Host;
 import org.cloudbus.cloudsim.vms.Vm;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import java.util.*;
+import java.util.function.BiFunction;
 
 
-public class FederatedDatacenterBrokerSimple extends DatacenterBrokerAbstract {
+public class FederatedDatacenterBrokerSimple extends DatacenterBrokerSimple {
 
 
     private FederationMember owner;
     private CloudFederation federation;
-    /**
-     * Index of the last VM selected from the {@link #getVmExecList()}
-     * to run some Cloudlet.
-     */
+    private Comparator<FederatedDatacenter> datacenterComparator;
+    private Comparator<FederatedDatacenterBrokerSimple> datacenterBrokerComparator;
 
-    private int lastSelectedVmIndex;
+    private BiFunction<FederatedDatacenter, Cloudlet, Boolean> datacenterEligibleFunction;
 
-    /**
-     * Index of the last Datacenter selected to place some VM.
-     */
-    private int lastSelectedDcIndex;
+    public Comparator<FederatedDatacenter> getDatacenterComparator() {
+        return datacenterComparator;
+    }
 
-    /**
-     * Creates a new DatacenterBroker.
-     *
-     * @param simulation the CloudSim instance that represents the simulation the Entity is related to
-     */
-    public FederatedDatacenterBrokerSimple(final CloudSim simulation) {
-        this(simulation, "");
+    public void setDatacenterComparator(Comparator<FederatedDatacenter> datacenterComparator) {
+        this.datacenterComparator = datacenterComparator;
+    }
 
+    public BiFunction<FederatedDatacenter, Cloudlet, Boolean> getDatacenterEligibleFunction() {
+        return datacenterEligibleFunction;
+    }
+
+    public void setDatacenterEligibleFunction(BiFunction<FederatedDatacenter, Cloudlet, Boolean> datacenterEligibleFunction) {
+        this.datacenterEligibleFunction = datacenterEligibleFunction;
+    }
+
+
+    public FederatedDatacenterBrokerSimple(final CloudSim simulation,
+                                           Comparator<FederatedDatacenter> datacenterComparator,
+                                           Comparator<FederatedDatacenterBrokerSimple> datacenterBrokerComparator,
+                                           FederationMember owner) {
+        super(simulation);
+        this.owner = owner;
     }
 
     /**
      * Creates a DatacenterBroker giving a specific name.
-     *
      * @param simulation the CloudSim instance that represents the simulation the Entity is related to
      * @param name the DatacenterBroker name
+     * @param datacenterComparator the comparator for chosing
+     * @param datacenterBrokerComparator
      */
-    public FederatedDatacenterBrokerSimple(final CloudSim simulation, final String name) {
+    public FederatedDatacenterBrokerSimple(final CloudSim simulation,
+                                           final String name,
+                                           Comparator<FederatedDatacenter> datacenterComparator,
+                                           Comparator<FederatedDatacenterBrokerSimple> datacenterBrokerComparator,
+                                           FederationMember owner) {
         super(simulation, name);
-        this.lastSelectedVmIndex = -1;
-        this.lastSelectedDcIndex = -1;
+        this.owner = owner;
+        this.datacenterComparator = datacenterComparator;
+        this.datacenterBrokerComparator = datacenterBrokerComparator;
+    }
+
+    public FederatedDatacenterBrokerSimple(CloudSim simulation, FederationMember owner, CloudFederation federation, Comparator<FederatedDatacenter> datacenterComparator, Comparator<FederatedDatacenterBrokerSimple> datacenterBrokerComparator, BiFunction<FederatedDatacenter, Cloudlet, Boolean> datacenterEligibleFunction) {
+        super(simulation);
+        this.owner = owner;
+        this.federation = federation;
+        this.datacenterComparator = datacenterComparator;
+        this.datacenterBrokerComparator = datacenterBrokerComparator;
+        this.datacenterEligibleFunction = datacenterEligibleFunction;
     }
 
     /**
@@ -75,8 +96,12 @@ public class FederatedDatacenterBrokerSimple extends DatacenterBrokerAbstract {
     @Override
     protected Datacenter defaultDatacenterMapper(final Datacenter lastDatacenter, final Vm vm) {
         String datacenterId = vm.getDescription().split(",")[0];
-        return getDatacenterList().stream().filter(datacenter -> datacenterId.equals(datacenter.getName())).findFirst().orElse(Datacenter.NULL);
-
+        Optional<FederatedDatacenter> result = owner.getDatacenters().stream().filter(datacenter -> datacenterId.equals(datacenter.getName())).
+            findFirst();
+        if(result.isPresent()){
+            return result.get();
+        }
+        return Datacenter.NULL;
     }
 
 
@@ -104,10 +129,21 @@ public class FederatedDatacenterBrokerSimple extends DatacenterBrokerAbstract {
         if(first.isPresent())
             return first.get();
 
-        /*If the cloudlet isn't bound to a specific VM or the bound VM was not created,
-        cyclically selects the next VM on the list of created VMs.*/
-        lastSelectedVmIndex = ++lastSelectedVmIndex % getVmExecList().size();
-        return getVmFromCreatedList(lastSelectedVmIndex);
+        // if no VM is able to host the cloudlet, search for VMs from other members of the federation
+        List<FederatedDatacenter> datacenters = federation.getMembers().stream().
+            filter(federationMember -> !this.owner.equals(federationMember)).
+            map(member -> new ArrayList<>(member.getDatacenters())).toList().stream()
+            .reduce(new ArrayList<>(),(member, accumulator)->{
+                accumulator.addAll(member);
+                return accumulator;
+            });
+        if(datacenterComparator != null)
+            datacenters.sort(datacenterComparator);
+        Optional<FederatedDatacenter> availableDatacenter = datacenters.stream().
+            filter(datacenter-> datacenterEligibleFunction.apply(datacenter,cloudlet)).findFirst();
+        return availableDatacenter.map(datacenter -> datacenter.getVmList().stream().
+            min(datacenter.getVmComparator()).orElse(Vm.NULL))
+            .orElse(Vm.NULL);
     }
     private List<Vm> sortVms(List<Vm> vms){
         return vms.stream().
@@ -116,5 +152,14 @@ public class FederatedDatacenterBrokerSimple extends DatacenterBrokerAbstract {
     }
     protected boolean checkIfVmIsSuitableForCloudlet(Vm vm, Cloudlet cloudlet){
         return vm.getHost().getCpuPercentUtilization() < 1;
+    }
+    public double getAverageDatacenterCpuUtilization(){
+        ArrayList<Host> hosts = new ArrayList<>(owner.getDatacenters().stream().map(Datacenter::getHostList).toList().stream().reduce(new ArrayList<>(),
+            (acc, hostList) -> {
+                acc.addAll(hostList);
+                return acc;
+            }));
+        return hosts.stream().map(Host::getCpuPercentUtilization).
+            reduce(0.0, (acc, percentage) -> acc + percentage / hosts.size());
     }
 }

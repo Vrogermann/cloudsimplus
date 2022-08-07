@@ -6,7 +6,11 @@ import java.util.Set;
 Represents a Cloud federation, where different organizations can share datacenters
  */
 public class CloudFederation {
-    private Set<FederationMember> members;
+    public Set<FederationMember> getMembers() {
+        return members;
+    }
+
+    private final Set<FederationMember> members;
     private String name;
     private Long id;
 
