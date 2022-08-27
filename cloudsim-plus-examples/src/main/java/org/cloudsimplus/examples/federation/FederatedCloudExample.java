@@ -110,7 +110,7 @@ public class FederatedCloudExample {
     private static final long HOST_STORAGE = 10_000; //in Megabytes
     private static final int VM_PES = 1;
 
-    private static final int CLOUDLETS = 2;
+    private static final int CLOUDLETS = 73;
     private static final int CLOUDLET_PES = 1;
     private static final int CLOUDLET_LENGTH = 10_000;
 
@@ -257,6 +257,8 @@ public class FederatedCloudExample {
         for (int i = 0; i < CLOUDLETS; i++) {
             final Cloudlet cloudlet = new CloudletSimple(CLOUDLET_LENGTH, CLOUDLET_PES, utilizationModel);
             cloudlet.setSizes(1024);
+            cloudlet.setUtilizationModelRam(new UtilizationModelConstant(0.1));
+            cloudlet.setUtilizationModelBw(new UtilizationModelConstant(0.1));
             list.add(cloudlet);
 
         }
