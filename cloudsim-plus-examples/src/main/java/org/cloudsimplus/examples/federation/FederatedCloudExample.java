@@ -103,6 +103,7 @@ public class FederatedCloudExample {
         10,
         30,
         20);
+    private static final int USERS_PER_FEDERATION_MEMBER
     private static final int  HOST_PES = 4;
     private static final int  HOST_MIPS = 3450; // from 7zip sandy bridge benchmark on https://www.7-cpu.com/
     private static final int  HOST_RAM = 8192; //in Megabytes
@@ -205,7 +206,6 @@ public class FederatedCloudExample {
                 Host host = createHost();
                 host.setId(createHostId(federationMember.getId(), currentDatacenter, currentHost));
                 hostList.add(host);
-                federationMember.getBroker().submitVm(createVm(host, currentDatacenter,federationMember.getId()));
             }
 
 
@@ -249,9 +249,7 @@ public class FederatedCloudExample {
     private List<Cloudlet> createCloudlets() {
         final List<Cloudlet> list = new ArrayList<>(CLOUDLETS);
 
-        //UtilizationModel defining the Cloudlets use only 50% of any resource all the time
-        //a utilização de processamento de cada job será de 50%
-        //como a função setUtilizationUpdateFunction não foi chamada, esse será o uso até o cloudlet terminar
+
         final UtilizationModelDynamic utilizationModel = new UtilizationModelDynamic(0.5);
         //utilizationModel.setUtilizationUpdateFunction((UtilizationModelDynamic modelDynamic)-> Math.abs(Math.sin(modelDynamic.getTimeSpan())));
         for (int i = 0; i < CLOUDLETS; i++) {

@@ -4,7 +4,9 @@ import org.cloudbus.cloudsim.brokers.FederatedDatacenterBrokerSimple;
 import org.cloudbus.cloudsim.datacenters.FederatedDatacenter;
 import org.cloudsimplus.util.Records;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 public class FederationMember {
@@ -15,6 +17,7 @@ public class FederationMember {
     private CloudFederation federation;
     private FederatedDatacenterBrokerSimple broker;
     private Records.Coordinates coordinates;
+    private List<Records.FederationMemberUser> userList;
 
     /**
      * Creates a member of a Cloud Federation
@@ -34,6 +37,7 @@ public class FederationMember {
         if(federation != null){
             federation.addMember(this);
         }
+        this.userList = new ArrayList<>();
     }
 
     public void addDatacenter(FederatedDatacenter datacenter){
@@ -88,6 +92,7 @@ public class FederationMember {
         this.federation = federation;
         this.coordinates = coordinates;
         this.datacenters= new HashSet<>();
+        this.userList = new ArrayList<>();
     }
 
     public Set<FederatedDatacenter> getDatacenters() {
