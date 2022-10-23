@@ -29,7 +29,7 @@ public class FederatedDatacenterBrokerSimple extends DatacenterBrokerSimple {
 
     Logger LOGGER = LoggerFactory.getLogger(FederatedDatacenterBrokerSimple.class.getSimpleName());
     private final FederationMember owner;
-    private CloudFederation federation;
+    private final CloudFederation federation;
 
 
     /**
@@ -60,21 +60,24 @@ public class FederatedDatacenterBrokerSimple extends DatacenterBrokerSimple {
     public FederatedDatacenterBrokerSimple(final CloudSim simulation,
                                            Comparator<FederatedDatacenter> datacenterCloudletComparator,
                                            Comparator<FederatedDatacenterBrokerSimple> datacenterBrokerComparator,
-                                           FederationMember owner) {
+                                           FederationMember owner, CloudFederation federation) {
         super(simulation);
         this.owner = owner;
+        this.federation = federation;
     }
 
     /**
      * Creates a DatacenterBroker giving a specific name.
      * @param simulation the CloudSim instance that represents the simulation the Entity is related to
      * @param name the DatacenterBroker name
+     * @param federation
      */
     public FederatedDatacenterBrokerSimple(final CloudSim simulation,
                                            final String name,
-                                           FederationMember owner) {
+                                           FederationMember owner, CloudFederation federation) {
         super(simulation, name);
         this.owner = owner;
+        this.federation = federation;
     }
 
     public FederatedDatacenterBrokerSimple(CloudSim simulation, FederationMember owner, CloudFederation federation, Comparator<FederatedDatacenter> datacenterCloudletComparator, BiFunction<FederatedDatacenter, FederatedCloudletSimple, Boolean> datacenterEligibleForCloudletFunction) {
@@ -112,7 +115,9 @@ public class FederatedDatacenterBrokerSimple extends DatacenterBrokerSimple {
                 accumulatedList1.addAll(accumulatedList2);
                 return accumulatedList1;
             });
-        List<FederatedDatacenter> datacentersFromOtherMembersThatCanSupportTheVm = datacentersFromOtherMembers.stream().filter(datacenter -> datacenterEligibleForVMFunction.apply(datacenter, vm)).toList();
+        List<FederatedDatacenter> datacentersFromOtherMembersThatCanSupportTheVm =
+            datacentersFromOtherMembers.stream().
+                filter(datacenter -> datacenterEligibleForVMFunction.apply(datacenter, vm)).collect(Collectors.toList());
         if(datacenterForVmComparator != null){
             datacentersFromOtherMembersThatCanSupportTheVm.sort(datacenterForVmComparator);
         }
@@ -168,7 +173,7 @@ public class FederatedDatacenterBrokerSimple extends DatacenterBrokerSimple {
             }).stream().filter((FederatedVmSimple vm) ->
                 vm.getVmOwner().equals(((FederatedCloudletSimple) cloudlet).getOwner()) &&
                     vmEligibleForCloudletFunction.apply(((FederatedVmSimple) vm), (FederatedCloudletSimple) cloudlet)).
-            toList();
+            collect(Collectors.toList());
 
         if(!vmsOnOtherMembersDatacenter.isEmpty()){
             vmsOnOtherMembersDatacenter.sort(vmComparator);
@@ -204,5 +209,9 @@ public class FederatedDatacenterBrokerSimple extends DatacenterBrokerSimple {
 
     public void setDatacenterForVmComparator(Comparator<FederatedDatacenter> datacenterForVmComparator) {
         this.datacenterForVmComparator = datacenterForVmComparator;
+    }
+
+    public void setVmEligibleForCloudletFunction(BiFunction<FederatedVmSimple, FederatedCloudletSimple, Boolean> vmEligibleForCloudletFunction) {
+        this.vmEligibleForCloudletFunction = vmEligibleForCloudletFunction;
     }
 }

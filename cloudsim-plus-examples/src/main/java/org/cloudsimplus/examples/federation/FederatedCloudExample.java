@@ -24,12 +24,11 @@
 package org.cloudsimplus.examples.federation;
 
 import ch.qos.logback.classic.Level;
-import org.cloudbus.cloudsim.brokers.DatacenterBroker;
 import org.cloudbus.cloudsim.brokers.FederatedDatacenterBrokerSimple;
 import org.cloudbus.cloudsim.cloudlets.Cloudlet;
 import org.cloudbus.cloudsim.cloudlets.CloudletSimple;
+import org.cloudbus.cloudsim.cloudlets.FederatedCloudletSimple;
 import org.cloudbus.cloudsim.core.CloudSim;
-import org.cloudbus.cloudsim.datacenters.DatacenterSimple;
 import org.cloudbus.cloudsim.datacenters.FederatedDatacenter;
 import org.cloudbus.cloudsim.federation.CloudFederation;
 import org.cloudbus.cloudsim.federation.FederationMember;
@@ -42,6 +41,7 @@ import org.cloudbus.cloudsim.util.Conversion;
 import org.cloudbus.cloudsim.utilizationmodels.UtilizationModelConstant;
 import org.cloudbus.cloudsim.utilizationmodels.UtilizationModelDynamic;
 import org.cloudbus.cloudsim.utilizationmodels.UtilizationModelFull;
+import org.cloudbus.cloudsim.vms.FederatedVmSimple;
 import org.cloudbus.cloudsim.vms.Vm;
 import org.cloudbus.cloudsim.vms.VmSimple;
 import org.cloudsimplus.builders.tables.CloudletsTableBuilder;
@@ -50,6 +50,7 @@ import org.cloudsimplus.util.Log;
 import org.cloudsimplus.util.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.cloudbus.cloudsim.util.BytesConversion.megaBytesToBytes;
 import static org.cloudbus.cloudsim.util.MathUtil.positive;
@@ -57,56 +58,81 @@ import static org.cloudbus.cloudsim.util.MathUtil.positive;
 
 public class FederatedCloudExample {
     private static final String BOT_CSV_FILE = "workload/ufpel/bot.csv";
-    private static final int UNIVERSITIES = 10;
-    private static final List<String> UNIVERSITY_NAMES = Arrays.asList(
-        "Universidade Federal do Rio de Janeiro",
-        "Universidade Federal de São Paulo (UNIFESP)",
-        "Universidade Federal de Minas Gerais",
-        "Universidade Federal do Rio Grande Do Sul",
-        "Universidade Federal de Santa Catarina",
-        "Universidade Federal de São Carlos",
-        "Universidade Federal do Paraná (UFPR)",
-        "Universidade Federal do Pernambuco",
-        "Universidade Federal da Bahia",
-        "Universidade Federal de Juiz de Fora");
-    private static final List<Integer> UNIVERSITY_DATACENTER_AMOUNT = Arrays.asList(
-        1,
-        2,
-        3,
-        4,
-        4,
-        3,
-        2,
-        1,
-        3,
-        2);
-    private static final List<Records.Coordinates> UNIVERSITY_COORDINATES = Arrays.asList(
-        new Records.Coordinates(-22.862312050419078, -43.22317329523859),
-        new Records.Coordinates(-23.598773, -46.643422),
-        new Records.Coordinates(-19.870581085957383, -43.967746630914675),
-        new Records.Coordinates(-30.033907564026826, -51.21900538654607),
-        new Records.Coordinates(-26.23485949891767, -48.88401144670387),
-        new Records.Coordinates(-21.983975081254595, -47.88152180795202),
-        new Records.Coordinates(-25.426871793799748, -49.26175798375143),
-        new Records.Coordinates(-8.01710961795856, -34.950500616736285),
-        new Records.Coordinates(-13.00365838049915, -38.509963739614044),
-        new Records.Coordinates(-21.776859501069005, -43.36904141993076));
+    private static final List<Records.University> UNIVERSITIES =
+        Arrays.asList(new Records.University("Universidade Federal do Rio de Janeiro",
+                new Records.Coordinates(-22.862312050419078, -43.22317329523859),
+                0,
+                1,
+                10,
+                5,
+                1),
+            new Records.University("Universidade Federal de São Paulo (UNIFESP)",
+                new Records.Coordinates(-23.598773, -46.643422),
+                1,
+                2,
+                20,
+                10,
+                1),
+            new Records.University("Universidade Federal de Minas Gerais",
+                new Records.Coordinates(-19.870581085957383, -43.967746630914675),
+                2,
+                3,
+                30,
+                15,
+                1),
+            new Records.University("Universidade Federal do Rio Grande Do Sul",
+                new Records.Coordinates(-30.033907564026826, -51.21900538654607),
+                3,
+                4,
+                40,
+                10,
+                1),
+            new Records.University("Universidade Federal de Santa Catarina",
+                new Records.Coordinates(-26.23485949891767, -48.88401144670387),
+                4,
+                4,
+                40,
+                5,
+                1),
+            new Records.University("Universidade Federal de São Carlos",
+                new Records.Coordinates(-21.983975081254595, -47.88152180795202),
+                5,
+                3,
+                30,
+                10,
+                1),
+            new Records.University("Universidade Federal do Paraná (UFPR)",
+                new Records.Coordinates(-25.426871793799748, -49.26175798375143),
+                6,
+                2,
+                20,
+                15,
+                1),
+            new Records.University("Universidade Federal do Pernambuco",
+                new Records.Coordinates(-8.01710961795856, -34.950500616736285),
+                7,
+                1,
+                10,
+                10,
+                1),
+            new Records.University("Universidade Federal da Bahia",
+                new Records.Coordinates(-13.00365838049915, -38.509963739614044),
+                8,
+                3,
+                30,
+                5,
+                1),
+            new Records.University("Universidade Federal de Juiz de Fora",
+                new Records.Coordinates(-21.776859501069005, -43.36904141993076),
+                9,
+                1,
+                20,
+                2,
+                50));
 
-    private static final List<Integer>  HOSTS_PER_DATACENTER = Arrays.asList(
-        10,
-        20,
-        30,
-        40,
-        40,
-        30,
-        20,
-        10,
-        30,
-        20);
-    private static final int USERS_PER_FEDERATION_MEMBER
-    private static final int  HOST_PES = 4;
-    private static final int  HOST_MIPS = 3450; // from 7zip sandy bridge benchmark on https://www.7-cpu.com/
-    private static final int  HOST_RAM = 8192; //in Megabytes
+    private static final int HOST_PES = 4;
+    private static final int HOST_MIPS = 3450; // from 7zip sandy bridge benchmark on https://www.7-cpu.com/
+    private static final int HOST_RAM = 8192; //in Megabytes
     private static final long HOST_BW = 10_000; //in Megabits/s
     private static final long HOST_STORAGE = 10_000; //in Megabytes
     private static final int VM_PES = 1;
@@ -116,10 +142,6 @@ public class FederatedCloudExample {
     private static final int CLOUDLET_LENGTH = 10_000;
 
     private final CloudSim simulation;
-    private List<DatacenterBroker> brokers;
-    private Map<Long,List<Vm>> datacenterVmList = new HashMap<>();
-    private List<Cloudlet> cloudletList;
-    private List<DatacenterSimple> datacenters;
 
     public static void main(String[] args) {
         new FederatedCloudExample();
@@ -131,26 +153,22 @@ public class FederatedCloudExample {
         Log.setLevel(Level.ALL);
 
         simulation = new CloudSim();
-        List<Records.University> universities = new ArrayList<>();
-        CloudFederation federation = new CloudFederation("Federal Universities of Brazil",0L);
-        for (int currentUniversity = 0; currentUniversity < UNIVERSITIES; currentUniversity++) {
-            universities.add(new Records.University(UNIVERSITY_NAMES.get(currentUniversity),
-                UNIVERSITY_COORDINATES.get(currentUniversity),
-                currentUniversity));
-        }
-        universities.forEach(university->{
-            FederationMember federationMember = new FederationMember(university.name(),
-                university.id(),
-                federation,
-                university.coordinates());
+        CloudFederation federation = new CloudFederation("Federal Universities of Brazil", 0L);
+
+        UNIVERSITIES.forEach(university -> {
+            FederationMember federationMember = new FederationMember(university.name(), university.id(), federation, university.coordinates());
 
             federation.addMember(federationMember);
-            federationMember.setBroker(new FederatedDatacenterBrokerSimple(simulation,
-                getFederatedDatacenterComparator(),
-                getFederatedDatacenterBrokerComparator(),federationMember));
-
-            federationMember.setDatacenters(Set.copyOf(createDatacenters(federationMember)));
-            federationMember.getBroker().submitCloudletList(createCloudlets());
+            federationMember.setBroker(new FederatedDatacenterBrokerSimple(simulation, getFederatedDatacenterComparator(), getFederatedDatacenterBrokerComparator(), federationMember, federation));
+            federationMember.getBroker().setDatacenterEligibleForVMFunction((datacenter, vm)-> datacenter.getHostList().stream().anyMatch(host-> host.getFreePesNumber() >= vm.getExpectedFreePesNumber()));
+            federationMember.getBroker().setVmEligibleForCloudletFunction((vm, cloudlet)-> cloudlet.getOwner().equals(vm.getVmOwner()));
+            federationMember.getBroker().setDatacenterForVmComparator(Comparator.comparingDouble(FederatedDatacenter::getAverageCpuPercentUtilization));
+            federationMember.getBroker().setName(university.name().replace(" ", "_"));
+            federationMember.setDatacenters(Set.copyOf(createDatacenters(federationMember, university)));
+            List<FederatedCloudletSimple> cloudlets = createCloudlets(university, federationMember);
+            List<Vm> Vms = createVmList(cloudlets);
+            federationMember.getBroker().submitVmList(Vms);
+            federationMember.getBroker().submitCloudletList(cloudlets);
         });
 
 
@@ -161,56 +179,92 @@ public class FederatedCloudExample {
         //brokers.forEach(broker->broker.submitCloudletList(createCloudlets()));
 
 
-      //  broker0.setVmMapper((cloudlet -> vmList.sort((vml))))
+        //  broker0.setVmMapper((cloudlet -> vmList.sort((vml))))
 
         simulation.start();
 
-        final List<Cloudlet> finishedCloudlets = federation.getMembers().stream().
-            map(member->member.getBroker().getCloudletFinishedList()).
-            reduce((accumulator, list)-> {
-                accumulator.addAll(list);
-                return accumulator;
+        final List<Cloudlet> finishedCloudlets = federation.getMembers().stream().map(member -> member.getBroker().getCloudletFinishedList()).reduce((accumulator, list) -> {
+            accumulator.addAll(list);
+            return accumulator;
         }).orElse(Collections.emptyList());
         new CloudletsTableBuilder(finishedCloudlets).build();
     }
 
+    private List<Vm> createVmList(List<FederatedCloudletSimple> cloudlets) {
+        return cloudlets.stream().map(cloudlet-> {
+            final Vm vm = new FederatedVmSimple(HOST_MIPS, HOST_PES, cloudlet.getOwner());
+            vm.setRam(HOST_RAM/ HOST_PES).setBw(HOST_BW/HOST_PES).setSize(HOST_STORAGE).setCloudletScheduler(new CloudletSchedulerTimeShared());
+            return vm;
+        }).collect(Collectors.toList());
+    }
+
+    private List<FederatedCloudletSimple> createCloudlets(Records.University university, FederationMember federationMember) {
+        final List<FederatedCloudletSimple> list = new ArrayList<>(university.cloudletsPerUser());
+        for(int currentUser = 0; currentUser < university.numberOfUsers(); currentUser++){
+            Records.FederationMemberUser user = new Records.FederationMemberUser((long) currentUser, federationMember);
+            final UtilizationModelConstant utilizationModel = new UtilizationModelConstant(1);
+            for (int i = 0; i < university.cloudletsPerUser(); i++) {
+
+                final FederatedCloudletSimple cloudlet = new FederatedCloudletSimple(CLOUDLET_LENGTH,
+                    CLOUDLET_PES,
+                    utilizationModel,
+                    user);
+                cloudlet.setSubmissionDelay(currentUser * university.cloudletsPerUser() + i);
+                cloudlet.setSizes(1024);
+                cloudlet.setUtilizationModelRam(new UtilizationModelConstant(1.0/ university.cloudletsPerUser()));
+                cloudlet.setUtilizationModelBw(new UtilizationModelConstant(1.0/ university.cloudletsPerUser()));
+                list.add(cloudlet);
+
+            }
+
+
+        }
+        return list;
+    }
+
+    private List<FederatedVmSimple> createVMs(Records.University university, FederationMember federationMember) {
+       return null;
+    }
 
 
     /**
      * creates an id for a federatedHost
+     *
      * @param federationMemberId id of the federation member
-     * @param datacenterId id of the datacenter
-     * @param hostId id of the host
+     * @param datacenterId       id of the datacenter
+     * @param hostId             id of the host
      * @return a long mapping the first 16 bits to the host number, the next 16 to the datacenter number
      * and the next 16 to the federation member number
      */
-    private long createHostId(long federationMemberId, long datacenterId, long hostId){
-        return (long) (hostId + datacenterId * Math.pow(2,16) + federationMemberId * Math.pow(2,32));
+    private long createHostId(long federationMemberId, long datacenterId, long hostId) {
+        return (long) (hostId + datacenterId * Math.pow(2, 16) + federationMemberId * Math.pow(2, 32));
     }
+
     /**
      * Creates a Datacenter and its Hosts, and one VM for each Host.
      */
-    public static Comparator<FederatedDatacenterBrokerSimple> getFederatedDatacenterBrokerComparator(){
-        return  Comparator.comparingDouble(FederatedDatacenterBrokerSimple::getAverageDatacenterCpuUtilization).reversed();
+    public static Comparator<FederatedDatacenterBrokerSimple> getFederatedDatacenterBrokerComparator() {
+        return Comparator.comparingDouble(FederatedDatacenterBrokerSimple::getAverageDatacenterCpuUtilization).reversed();
     }
-    public static Comparator<FederatedDatacenter> getFederatedDatacenterComparator(){
-       return  Comparator.comparingDouble(FederatedDatacenter::getAverageCpuPercentUtilization).reversed();
+
+    public static Comparator<FederatedDatacenter> getFederatedDatacenterComparator() {
+        return Comparator.comparingDouble(FederatedDatacenter::getAverageCpuPercentUtilization).reversed();
     }
-    private List<FederatedDatacenter> createDatacenters(FederationMember federationMember) {
+
+    private List<FederatedDatacenter> createDatacenters(FederationMember federationMember, Records.University university) {
         List<FederatedDatacenter> datacenters = new ArrayList<>();
         federationMember.setBroker(federationMember.getBroker());
-        for(int currentDatacenter = 0; currentDatacenter < UNIVERSITY_DATACENTER_AMOUNT.get(federationMember.getId()); currentDatacenter++) {
+        for (int currentDatacenter = 0; currentDatacenter < university.datacenterAmount(); currentDatacenter++) {
             final List<Host> hostList = new ArrayList<>();
 
-            for(int currentHost = 0; currentHost < HOSTS_PER_DATACENTER.get(federationMember.getId()); currentHost++) {
+            for (int currentHost = 0; currentHost < university.hostsPerDatacenter(); currentHost++) {
                 Host host = createHost();
-                host.setId(createHostId(federationMember.getId(), currentDatacenter, currentHost));
                 hostList.add(host);
             }
 
 
             FederatedDatacenter federatedDatacenter = new FederatedDatacenter(simulation, hostList, federationMember);
-            federatedDatacenter.setName(String.valueOf(currentDatacenter));
+            federatedDatacenter.setName(String.format("%s:%d",university.name().replace(" ","_"), currentDatacenter));
             datacenters.add(federatedDatacenter);
         }
         return datacenters;
@@ -232,16 +286,7 @@ public class FederatedCloudExample {
     }
 
 
-    private Vm createVm(Host host, long datacenterId, long federationMemberId) {
 
-        final Vm vm = new VmSimple(host.getMips(), host.getNumberOfPes());
-        vm.setRam(host.getRam().getCapacity())
-            .setBw(host.getBw().getCapacity())
-            .setSize(host.getStorage().getCapacity()).
-            setCloudletScheduler(new CloudletSchedulerTimeShared())
-            .setDescription(String.format("%d,%d,%d",datacenterId, host.getId(), federationMemberId));
-        return vm;
-    }
 
     /**
      * Creates a list of Cloudlets.
@@ -263,20 +308,16 @@ public class FederatedCloudExample {
 
         return list;
     }
+
     //0.0001554,0.06433,0.0625
-    private Cloudlet createCloudlet(BoT bot){
+    private Cloudlet createCloudlet(BoT bot) {
         final long pesNumber = positive(bot.actualCpuCores(VM_PES), VM_PES);
 
         final double maxRamUsagePercent = positive(bot.getTaskRamUsage(), Conversion.HUNDRED_PERCENT);
         final UtilizationModelConstant utilizationRam = new UtilizationModelConstant(maxRamUsagePercent);
 
-        final double sizeInMB    = bot.getTaskDiskUsage() * HOST_STORAGE + 1;
-        final long   sizeInBytes = (long) Math.ceil(megaBytesToBytes(sizeInMB));
-        return new CloudletSimple(CLOUDLET_LENGTH, pesNumber)
-            .setFileSize(sizeInBytes)
-            .setOutputSize(sizeInBytes)
-            .setUtilizationModelBw(new UtilizationModelFull())
-            .setUtilizationModelCpu(new UtilizationModelFull())
-            .setUtilizationModelRam(utilizationRam);
+        final double sizeInMB = bot.getTaskDiskUsage() * HOST_STORAGE + 1;
+        final long sizeInBytes = (long) Math.ceil(megaBytesToBytes(sizeInMB));
+        return new CloudletSimple(CLOUDLET_LENGTH, pesNumber).setFileSize(sizeInBytes).setOutputSize(sizeInBytes).setUtilizationModelBw(new UtilizationModelFull()).setUtilizationModelCpu(new UtilizationModelFull()).setUtilizationModelRam(utilizationRam);
     }
 }

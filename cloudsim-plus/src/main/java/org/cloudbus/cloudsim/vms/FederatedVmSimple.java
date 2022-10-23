@@ -35,4 +35,9 @@ public class FederatedVmSimple extends VmSimple{
         return vmOwner;
     }
 
+    @Override
+    public String toString(){
+        return this.vmOwner.member().getName() + "/" + this.vmOwner.id();
+    }
+
 }
