@@ -72,6 +72,21 @@ public class FederatedCloudExample {
                 2,
                 20,
                 10,
+                1));
+    private static final List<Records.University> UNIVERSITIES_FULL =
+        Arrays.asList(new Records.University("Universidade Federal do Rio de Janeiro",
+                new Records.Coordinates(-22.862312050419078, -43.22317329523859),
+                0,
+                1,
+                10,
+                5,
+                1),
+            new Records.University("Universidade Federal de São Paulo (UNIFESP)",
+                new Records.Coordinates(-23.598773, -46.643422),
+                1,
+                2,
+                20,
+                10,
                 1),
             new Records.University("Universidade Federal de Minas Gerais",
                 new Records.Coordinates(-19.870581085957383, -43.967746630914675),
@@ -163,7 +178,7 @@ public class FederatedCloudExample {
             federationMember.getBroker().setDatacenterEligibleForVMFunction((datacenter, vm)-> datacenter.getHostList().stream().anyMatch(host-> host.getFreePesNumber() >= vm.getExpectedFreePesNumber()));
             federationMember.getBroker().setVmEligibleForCloudletFunction((vm, cloudlet)-> cloudlet.getOwner().equals(vm.getVmOwner()));
             federationMember.getBroker().setDatacenterForVmComparator(Comparator.comparingDouble(FederatedDatacenter::getAverageCpuPercentUtilization));
-            federationMember.getBroker().setName(university.name().replace(" ", "_"));
+            federationMember.getBroker().setName("broker_" +university.name().replace(" ", "_"));
             federationMember.setDatacenters(Set.copyOf(createDatacenters(federationMember, university)));
             List<FederatedCloudletSimple> cloudlets = createCloudlets(university, federationMember);
             List<Vm> Vms = createVmList(cloudlets);
@@ -193,7 +208,11 @@ public class FederatedCloudExample {
     private List<Vm> createVmList(List<FederatedCloudletSimple> cloudlets) {
         return cloudlets.stream().map(cloudlet-> {
             final Vm vm = new FederatedVmSimple(HOST_MIPS, HOST_PES, cloudlet.getOwner());
-            vm.setRam(HOST_RAM/ HOST_PES).setBw(HOST_BW/HOST_PES).setSize(HOST_STORAGE).setCloudletScheduler(new CloudletSchedulerTimeShared());
+            vm.setRam(HOST_RAM/ HOST_PES).
+                setBw(HOST_BW/HOST_PES).
+                setSize(HOST_STORAGE).
+                setCloudletScheduler(new CloudletSchedulerTimeShared())
+                .setSubmissionDelay(cloudlet.getSubmissionDelay());
             return vm;
         }).collect(Collectors.toList());
     }
@@ -264,7 +283,7 @@ public class FederatedCloudExample {
 
 
             FederatedDatacenter federatedDatacenter = new FederatedDatacenter(simulation, hostList, federationMember);
-            federatedDatacenter.setName(String.format("%s:%d",university.name().replace(" ","_"), currentDatacenter));
+            federatedDatacenter.setName(String.format("datacenter_%s:_number_%d",university.name().replace(" ","_"), currentDatacenter));
             datacenters.add(federatedDatacenter);
         }
         return datacenters;
