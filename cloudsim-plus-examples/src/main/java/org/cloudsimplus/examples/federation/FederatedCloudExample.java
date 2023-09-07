@@ -24,6 +24,7 @@
 package org.cloudsimplus.examples.federation;
 
 import ch.qos.logback.classic.Level;
+import org.cloudbus.cloudsim.allocationpolicies.FederatedVmAllocationPolicyBestFit;
 import org.cloudbus.cloudsim.brokers.FederatedDatacenterBrokerSimple;
 import org.cloudbus.cloudsim.cloudlets.Cloudlet;
 import org.cloudbus.cloudsim.cloudlets.CloudletSimple;
@@ -37,18 +38,19 @@ import org.cloudbus.cloudsim.hosts.HostSimple;
 import org.cloudbus.cloudsim.resources.Pe;
 import org.cloudbus.cloudsim.resources.PeSimple;
 import org.cloudbus.cloudsim.schedulers.cloudlet.CloudletSchedulerTimeShared;
+import org.cloudbus.cloudsim.util.BotFileReader;
 import org.cloudbus.cloudsim.util.Conversion;
 import org.cloudbus.cloudsim.utilizationmodels.UtilizationModelConstant;
 import org.cloudbus.cloudsim.utilizationmodels.UtilizationModelDynamic;
 import org.cloudbus.cloudsim.utilizationmodels.UtilizationModelFull;
 import org.cloudbus.cloudsim.vms.FederatedVmSimple;
 import org.cloudbus.cloudsim.vms.Vm;
-import org.cloudbus.cloudsim.vms.VmSimple;
 import org.cloudsimplus.builders.tables.CloudletsTableBuilder;
 import org.cloudsimplus.traces.ufpel.BoT;
 import org.cloudsimplus.util.Log;
 import org.cloudsimplus.util.*;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -57,21 +59,21 @@ import static org.cloudbus.cloudsim.util.MathUtil.positive;
 
 
 public class FederatedCloudExample {
-    private static final String BOT_CSV_FILE = "workload/ufpel/bot.csv";
+    private static final String BOT_CSV_FILE = "X:\\tcc\\cloudsimplus\\cloudsim-plus-examples\\src\\main\\resources\\workload\\ufpel\\outputconverted.csv";
     private static final List<Records.University> UNIVERSITIES =
         Arrays.asList(new Records.University("Universidade Federal do Rio de Janeiro",
                 new Records.Coordinates(-22.862312050419078, -43.22317329523859),
                 0,
                 1,
-                10,
-                5,
+                1,
+                100,
                 1),
             new Records.University("Universidade Federal de São Paulo (UNIFESP)",
                 new Records.Coordinates(-23.598773, -46.643422),
                 1,
-                2,
-                20,
-                10,
+                1,
+                100,
+                1,
                 1));
     private static final List<Records.University> UNIVERSITIES_FULL =
         Arrays.asList(new Records.University("Universidade Federal do Rio de Janeiro",
@@ -158,27 +160,32 @@ public class FederatedCloudExample {
 
     private final CloudSim simulation;
 
-    public static void main(String[] args) {
+    private final List<BoT> bagOfTasksList;
+    private int currentBotIndex = 0; // Initialize the bot index counter
+
+    public static void main(String[] args) throws IOException {
         new FederatedCloudExample();
     }
 
-    private FederatedCloudExample() {
+    private FederatedCloudExample() throws IOException {
         /*Enables just some level of log messages.
           Make sure to import org.cloudsimplus.util.Log;*/
         Log.setLevel(Level.ALL);
 
         simulation = new CloudSim();
         CloudFederation federation = new CloudFederation("Federal Universities of Brazil", 0L);
-
+        bagOfTasksList = BotFileReader.readBoTFile(BOT_CSV_FILE, 500L);
         UNIVERSITIES.forEach(university -> {
             FederationMember federationMember = new FederationMember(university.name(), university.id(), federation, university.coordinates());
 
             federation.addMember(federationMember);
             federationMember.setBroker(new FederatedDatacenterBrokerSimple(simulation, getFederatedDatacenterComparator(), getFederatedDatacenterBrokerComparator(), federationMember, federation));
+
             federationMember.getBroker().setDatacenterEligibleForVMFunction((datacenter, vm)-> datacenter.getHostList().stream().anyMatch(host-> host.getFreePesNumber() >= vm.getExpectedFreePesNumber()));
             federationMember.getBroker().setVmEligibleForCloudletFunction((vm, cloudlet)-> cloudlet.getOwner().equals(vm.getVmOwner()));
             federationMember.getBroker().setDatacenterForVmComparator(Comparator.comparingDouble(FederatedDatacenter::getAverageCpuPercentUtilization));
             federationMember.getBroker().setName("broker_" +university.name().replace(" ", "_"));
+
             federationMember.setDatacenters(Set.copyOf(createDatacenters(federationMember, university)));
             List<FederatedCloudletSimple> cloudlets = createCloudlets(university, federationMember);
             List<Vm> Vms = createVmList(cloudlets);
@@ -207,39 +214,17 @@ public class FederatedCloudExample {
 
     private List<Vm> createVmList(List<FederatedCloudletSimple> cloudlets) {
         return cloudlets.stream().map(cloudlet-> {
-            final Vm vm = new FederatedVmSimple(HOST_MIPS, HOST_PES, cloudlet.getOwner());
+            final Vm vm = new FederatedVmSimple(HOST_MIPS, 1, cloudlet.getOwner());
             vm.setRam(HOST_RAM/ HOST_PES).
                 setBw(HOST_BW/HOST_PES).
-                setSize(HOST_STORAGE).
+                setSize(HOST_STORAGE/4).
                 setCloudletScheduler(new CloudletSchedulerTimeShared())
                 .setSubmissionDelay(cloudlet.getSubmissionDelay());
             return vm;
         }).collect(Collectors.toList());
     }
 
-    private List<FederatedCloudletSimple> createCloudlets(Records.University university, FederationMember federationMember) {
-        final List<FederatedCloudletSimple> list = new ArrayList<>(university.cloudletsPerUser());
-        for(int currentUser = 0; currentUser < university.numberOfUsers(); currentUser++){
-            Records.FederationMemberUser user = new Records.FederationMemberUser((long) currentUser, federationMember);
-            final UtilizationModelConstant utilizationModel = new UtilizationModelConstant(1);
-            for (int i = 0; i < university.cloudletsPerUser(); i++) {
 
-                final FederatedCloudletSimple cloudlet = new FederatedCloudletSimple(CLOUDLET_LENGTH,
-                    CLOUDLET_PES,
-                    utilizationModel,
-                    user);
-                cloudlet.setSubmissionDelay(currentUser * university.cloudletsPerUser() + i);
-                cloudlet.setSizes(1024);
-                cloudlet.setUtilizationModelRam(new UtilizationModelConstant(1.0/ university.cloudletsPerUser()));
-                cloudlet.setUtilizationModelBw(new UtilizationModelConstant(1.0/ university.cloudletsPerUser()));
-                list.add(cloudlet);
-
-            }
-
-
-        }
-        return list;
-    }
 
     private List<FederatedVmSimple> createVMs(Records.University university, FederationMember federationMember) {
        return null;
@@ -283,6 +268,14 @@ public class FederatedCloudExample {
 
 
             FederatedDatacenter federatedDatacenter = new FederatedDatacenter(simulation, hostList, federationMember);
+
+            federatedDatacenter.
+                setVmAllocationPolicy(new FederatedVmAllocationPolicyBestFit(federationMember,
+                    federationMember.getFederation(),
+                    (datacenter, vm)-> datacenter.getHostList().stream().anyMatch(host-> host.getFreePesNumber() >= vm.getExpectedFreePesNumber())
+                    ,null, (host, vm)-> host.getFreePesNumber() >= vm.getExpectedFreePesNumber()
+                    && vm.getCurrentRequestedRam() <= host.getRam().getAvailableResource()
+                    && host.getAvailableStorage() >= vm.getStorage().getCapacity(), null));
             federatedDatacenter.setName(String.format("datacenter_%s:_number_%d",university.name().replace(" ","_"), currentDatacenter));
             datacenters.add(federatedDatacenter);
         }
@@ -328,15 +321,78 @@ public class FederatedCloudExample {
         return list;
     }
 
+    // user,jobId,taskNumber,taskLength,taskTime,taskDiskUsage,taskRam,averageTaskCpu,averageTaskLength,taskCores,schedulingClass,jobCreationTime,jobStartTime,jobEndTime,executionAttempts,evictionAmounts
     //0.0001554,0.06433,0.0625
-    private Cloudlet createCloudlet(BoT bot) {
-        final long pesNumber = positive(bot.actualCpuCores(VM_PES), VM_PES);
+
+
+//    private List<FederatedCloudletSimple> createCloudlets(Records.University university, FederationMember federationMember) {
+//        final List<FederatedCloudletSimple> list = new ArrayList<>(university.cloudletsPerUser());
+//        for(int currentUser = 0; currentUser < university.numberOfUsers(); currentUser++){
+//            Records.FederationMemberUser user = new Records.FederationMemberUser((long) currentUser, federationMember);
+//            final UtilizationModelConstant utilizationModel = new UtilizationModelConstant(1);
+//            for (int i = 0; i < university.cloudletsPerUser(); i++) {
+//
+//                FederatedCloudletSimple cloudlet = new FederatedCloudletSimple(CLOUDLET_LENGTH,
+//                    CLOUDLET_PES,
+//                    utilizationModel,
+//                    user);
+//                cloudlet.setSubmissionDelay(currentUser * university.cloudletsPerUser() + i);
+//                cloudlet.setSizes(1024);
+//                cloudlet.setUtilizationModelRam(new UtilizationModelConstant(1.0/ university.cloudletsPerUser()));
+//                cloudlet.setUtilizationModelBw(new UtilizationModelConstant(1.0/ university.cloudletsPerUser()));
+//                list.add(cloudlet);
+//
+//            }
+//
+//
+//        }
+//        return list;
+//    }
+
+    private List<FederatedCloudletSimple> createCloudlets(Records.University university, FederationMember federationMember) {
+        final List<FederatedCloudletSimple> list = new ArrayList<>(university.cloudletsPerUser());
+
+        for (int currentUser = 0; currentUser < university.numberOfUsers(); currentUser++) {
+            Records.FederationMemberUser user = new Records.FederationMemberUser((long) currentUser, federationMember);
+
+            for (int i = 0; i < university.cloudletsPerUser(); i++) {
+                BoT currentBoT = bagOfTasksList.get(currentBotIndex);
+                List<FederatedCloudletSimple> cloudlets = createAllCloudletsFromBoT(currentBoT, user);
+
+                list.addAll(cloudlets);
+
+                currentBotIndex++;
+            }
+        }
+
+        return list;
+    }
+
+    private List<FederatedCloudletSimple> createAllCloudletsFromBoT(BoT currentBoT, Records.FederationMemberUser user) {
+        List<FederatedCloudletSimple> cloudlets = new ArrayList<>(currentBoT.getNumberOfTasks().intValue());
+        for(int currentCloudlet = 0; currentCloudlet < currentBoT.getNumberOfTasks(); currentCloudlet++){
+            cloudlets.add(createCloudletFromBoT(currentBoT,user));
+        }
+        return cloudlets;
+    }
+
+    private FederatedCloudletSimple createCloudletFromBoT(BoT bot, Records.FederationMemberUser user) {
 
         final double maxRamUsagePercent = positive(bot.getTaskRamUsage(), Conversion.HUNDRED_PERCENT);
         final UtilizationModelConstant utilizationRam = new UtilizationModelConstant(maxRamUsagePercent);
 
+
         final double sizeInMB = bot.getTaskDiskUsage() * HOST_STORAGE + 1;
+        final UtilizationModelConstant utilizationModel = new UtilizationModelConstant(1);
         final long sizeInBytes = (long) Math.ceil(megaBytesToBytes(sizeInMB));
-        return new CloudletSimple(CLOUDLET_LENGTH, pesNumber).setFileSize(sizeInBytes).setOutputSize(sizeInBytes).setUtilizationModelBw(new UtilizationModelFull()).setUtilizationModelCpu(new UtilizationModelFull()).setUtilizationModelRam(utilizationRam);
+        final FederatedCloudletSimple cloudlet = new FederatedCloudletSimple(bot.getTaskLength().longValue(),
+            CLOUDLET_PES,
+            utilizationModel,
+            user);
+        cloudlet.setSubmissionDelay(bot.getJobStartTime());
+        cloudlet.setSizes(sizeInBytes);
+        cloudlet.setUtilizationModelRam(utilizationRam);
+        cloudlet.setUtilizationModelBw(new UtilizationModelFull());
+        return cloudlet;
     }
 }

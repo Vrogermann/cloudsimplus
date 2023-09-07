@@ -99,6 +99,21 @@ public class FederationMember {
         return datacenters;
     }
 
+    public ArrayList<FederatedDatacenter> getDatacentersFromOtherMembers() {
+        Set<FederationMember> members = new HashSet<>(federation.getMembers());
+        members.remove(this);
+        return members.stream().map(FederationMember::getDatacenters).reduce(new ArrayList<>()
+            , (ArrayList<FederatedDatacenter> datacenterList, Set<FederatedDatacenter> datacenterSet) -> {
+                datacenterList.addAll(datacenterSet);
+                return datacenterList;
+            },
+            (ArrayList<FederatedDatacenter> accumulatedList1, ArrayList<FederatedDatacenter> accumulatedList2) ->
+            {
+                accumulatedList1.addAll(accumulatedList2);
+                return accumulatedList1;
+            });
+
+    }
 
     public void setDatacenters(Set<FederatedDatacenter> datacenters) {
         this.datacenters = datacenters;

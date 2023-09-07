@@ -92,37 +92,14 @@ public class FederatedDatacenterBrokerSimple extends DatacenterBrokerSimple {
         if(!(vm instanceof FederatedVmSimple)){
             LOGGER.error("VM is not a FederatedVmSimple instance");
         }
-        // looks for the best datacenter of the user to place the VM
-        List<FederatedDatacenter> datacentersFromUserThatCanSupportTheVm = owner.getDatacenters().stream().filter(datacenter -> datacenterEligibleForVMFunction.apply(datacenter,vm)).
-            collect(Collectors.toList());
-        if(datacenterForVmComparator != null){
-            datacentersFromUserThatCanSupportTheVm.sort(datacenterForVmComparator);
+        if(!owner.getDatacenters().isEmpty()){
+            return (Datacenter) owner.getDatacenters().toArray()[0];
         }
-        if(!datacentersFromUserThatCanSupportTheVm.isEmpty()){
-            return datacentersFromUserThatCanSupportTheVm.get(0);
-        }
+
         // if no datacenters can host the user VM, look on datacenters from other members of the federation
-        Set<FederationMember> members = new HashSet<>(federation.getMembers());
-        members.remove(owner);
-        ArrayList<FederatedDatacenter> datacentersFromOtherMembers =
-            members.stream().map(FederationMember::getDatacenters).reduce(new ArrayList<FederatedDatacenter>()
-            , (ArrayList<FederatedDatacenter> datacenterList, Set<FederatedDatacenter> datacenterSet) -> {
-                datacenterList.addAll(datacenterSet);
-                return datacenterList;
-            },
-            (ArrayList<FederatedDatacenter> accumulatedList1, ArrayList<FederatedDatacenter> accumulatedList2) ->
-            {
-                accumulatedList1.addAll(accumulatedList2);
-                return accumulatedList1;
-            });
-        List<FederatedDatacenter> datacentersFromOtherMembersThatCanSupportTheVm =
-            datacentersFromOtherMembers.stream().
-                filter(datacenter -> datacenterEligibleForVMFunction.apply(datacenter, vm)).collect(Collectors.toList());
-        if(datacenterForVmComparator != null){
-            datacentersFromOtherMembersThatCanSupportTheVm.sort(datacenterForVmComparator);
-        }
-        if(!datacentersFromOtherMembersThatCanSupportTheVm.isEmpty()){
-            return datacentersFromOtherMembersThatCanSupportTheVm.get(0);
+        ArrayList<FederatedDatacenter> datacentersFromOtherMembers = owner.getDatacentersFromOtherMembers();
+        if(datacentersFromOtherMembers.size() >0){
+            return datacentersFromOtherMembers.get(0);
         }
 
 
@@ -158,13 +135,8 @@ public class FederatedDatacenterBrokerSimple extends DatacenterBrokerSimple {
 
         // if no datacenter from the user organization is currently hosting a vm from this user,
         // expand search to datacenters owned by other members of the federation
-        List<FederatedVmSimple> vmsOnOtherMembersDatacenter = federation.getMembers().stream().
-            filter(federationMember -> !this.owner.equals(federationMember)).
-            map(member -> new ArrayList<>(member.getDatacenters())).toList().stream()
-            .reduce(new ArrayList<>(), (member, accumulator) -> {
-                accumulator.addAll(member);
-                return accumulator;
-            }).stream().reduce(new ArrayList<FederatedVmSimple>(), (accumulator, datacenter) -> {
+        List<FederatedVmSimple> vmsOnOtherMembersDatacenter = owner.getDatacentersFromOtherMembers().stream().
+            reduce(new ArrayList<FederatedVmSimple>(), (accumulator, datacenter) -> {
                 accumulator.addAll(datacenter.getVmList());
                 return accumulator;
             }, (list1, list2) -> {

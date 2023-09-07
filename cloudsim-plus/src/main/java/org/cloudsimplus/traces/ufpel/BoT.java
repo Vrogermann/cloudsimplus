@@ -2,33 +2,33 @@
 package org.cloudsimplus.traces.ufpel;
 
 
-import java.util.function.Function;
 public final class BoT {
     private String userId;
     private String jobId;
     private Long  numberOfTasks;
-    private Long taskDuration;
-    private Long taskTime;
+    private Double taskLength;
+    private Double taskTime;
     private Double taskDiskUsage;
     private Double taskRamUsage;
 
     public BoT() {
     }
 
-    public BoT(String userId, String jobId, Long numberOfTasks, Long taskDuration, Long taskTime, Double taskDiskUsage, Double taskRamUsage, Double taskCpuCores, Long schedulingClass, Long jobCreationTime, Long jobEndTime, Long executionAttempts, Long evictionAmounts) {
+    public BoT(String userId, String jobId, Long numberOfTasks, Double taskLength, Double taskTime, Double taskDiskUsage, Double taskRamUsage, Double averageTaskCpu, Double taskCpuCores, Long schedulingClass, Long jobCreationTime, Long jobStartTime, Long jobEndTime, Long executionAttempts) {
         this.userId = userId;
         this.jobId = jobId;
         this.numberOfTasks = numberOfTasks;
-        this.taskDuration = taskDuration;
+        this.taskLength = taskLength;
         this.taskTime = taskTime;
         this.taskDiskUsage = taskDiskUsage;
         this.taskRamUsage = taskRamUsage;
+        this.averageTaskCpu = averageTaskCpu;
         this.taskCpuCores = taskCpuCores;
         this.schedulingClass = schedulingClass;
         this.jobCreationTime = jobCreationTime;
+        this.jobStartTime= jobStartTime;
         this.jobEndTime = jobEndTime;
         this.executionAttempts = executionAttempts;
-        this.evictionAmounts = evictionAmounts;
     }
 
     public String getUserId() {
@@ -55,19 +55,19 @@ public final class BoT {
         this.numberOfTasks = numberOfTasks;
     }
 
-    public Long getTaskDuration() {
-        return taskDuration;
+    public Double getTaskLength() {
+        return taskLength;
     }
 
-    public void setTaskDuration(Long taskDuration) {
-        this.taskDuration = taskDuration;
+    public void setTaskLength(Double taskLength) {
+        this.taskLength = taskLength;
     }
 
-    public Long getTaskTime() {
+    public Double getTaskTime() {
         return taskTime;
     }
 
-    public void setTaskTime(Long taskTime) {
+    public void setTaskTime(Double taskTime) {
         this.taskTime = taskTime;
     }
 
@@ -139,8 +139,29 @@ public final class BoT {
     private Long schedulingClass;
     private Long jobCreationTime;
     private Long jobEndTime;
+
+    private Long jobStartTime;
+
+    public Long getJobStartTime() {
+        return jobStartTime;
+    }
+
+    public void setJobStartTime(Long jobStartTime) {
+        this.jobStartTime = jobStartTime;
+    }
+
     private Long executionAttempts;
     private Long evictionAmounts;
+
+    public Double getAverageTaskCpu() {
+        return averageTaskCpu;
+    }
+
+    public void setAverageTaskCpu(Double averageTaskCpu) {
+        this.averageTaskCpu = averageTaskCpu;
+    }
+
+    private Double averageTaskCpu;
 
     public long actualCpuCores(final long maxCpuCores){
         return (long)(taskCpuCores * maxCpuCores);
