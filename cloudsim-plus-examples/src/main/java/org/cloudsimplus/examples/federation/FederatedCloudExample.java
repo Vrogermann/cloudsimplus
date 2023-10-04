@@ -179,11 +179,10 @@ public class FederatedCloudExample {
             FederationMember federationMember = new FederationMember(university.name(), university.id(), federation, university.coordinates());
 
             federation.addMember(federationMember);
-            federationMember.setBroker(new FederatedDatacenterBrokerSimple(simulation, getFederatedDatacenterComparator(), getFederatedDatacenterBrokerComparator(), federationMember, federation));
+            federationMember.setBroker(new FederatedDatacenterBrokerSimple(simulation, federationMember, federation));
 
-            federationMember.getBroker().setDatacenterEligibleForVMFunction((datacenter, vm)-> datacenter.getHostList().stream().anyMatch(host-> host.getFreePesNumber() >= vm.getExpectedFreePesNumber()));
-            federationMember.getBroker().setVmEligibleForCloudletFunction((vm, cloudlet)-> cloudlet.getOwner().equals(vm.getVmOwner()));
-            federationMember.getBroker().setDatacenterForVmComparator(Comparator.comparingDouble(FederatedDatacenter::getAverageCpuPercentUtilization));
+            federationMember.getBroker().setVmEligibleForCloudletFunction((vm, cloudlet)-> cloudlet.getOwner().equals(vm.getVmOwner())); // politica de mapeamento de cloudlet para vm
+
             federationMember.getBroker().setName("broker_" +university.name().replace(" ", "_"));
 
             federationMember.setDatacenters(Set.copyOf(createDatacenters(federationMember, university)));
@@ -257,7 +256,6 @@ public class FederatedCloudExample {
 
     private List<FederatedDatacenter> createDatacenters(FederationMember federationMember, Records.University university) {
         List<FederatedDatacenter> datacenters = new ArrayList<>();
-        federationMember.setBroker(federationMember.getBroker());
         for (int currentDatacenter = 0; currentDatacenter < university.datacenterAmount(); currentDatacenter++) {
             final List<Host> hostList = new ArrayList<>();
 

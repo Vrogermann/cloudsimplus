@@ -29,6 +29,8 @@ public class FederatedDatacenterBrokerSimple extends DatacenterBrokerSimple {
 
     Logger LOGGER = LoggerFactory.getLogger(FederatedDatacenterBrokerSimple.class.getSimpleName());
     private final FederationMember owner;
+
+
     private final CloudFederation federation;
 
 
@@ -40,51 +42,19 @@ public class FederatedDatacenterBrokerSimple extends DatacenterBrokerSimple {
 
 
 
-    private BiFunction<FederatedDatacenter, Vm, Boolean> datacenterEligibleForVMFunction;
     private Comparator<FederatedDatacenter> datacenterForVmComparator;
 
-    public BiFunction<FederatedDatacenter, Vm, Boolean> getDatacenterEligibleForVMFunction() {
-        return datacenterEligibleForVMFunction;
-    }
-
-    public void setDatacenterEligibleForVMFunction(BiFunction<FederatedDatacenter, Vm, Boolean> datacenterEligibleForVMFunction) {
-        this.datacenterEligibleForVMFunction = datacenterEligibleForVMFunction;
-    }
-
-
-
 
 
 
 
     public FederatedDatacenterBrokerSimple(final CloudSim simulation,
-                                           Comparator<FederatedDatacenter> datacenterCloudletComparator,
-                                           Comparator<FederatedDatacenterBrokerSimple> datacenterBrokerComparator,
                                            FederationMember owner, CloudFederation federation) {
         super(simulation);
         this.owner = owner;
         this.federation = federation;
     }
 
-    /**
-     * Creates a DatacenterBroker giving a specific name.
-     * @param simulation the CloudSim instance that represents the simulation the Entity is related to
-     * @param name the DatacenterBroker name
-     * @param federation
-     */
-    public FederatedDatacenterBrokerSimple(final CloudSim simulation,
-                                           final String name,
-                                           FederationMember owner, CloudFederation federation) {
-        super(simulation, name);
-        this.owner = owner;
-        this.federation = federation;
-    }
-
-    public FederatedDatacenterBrokerSimple(CloudSim simulation, FederationMember owner, CloudFederation federation, Comparator<FederatedDatacenter> datacenterCloudletComparator, BiFunction<FederatedDatacenter, FederatedCloudletSimple, Boolean> datacenterEligibleForCloudletFunction) {
-        super(simulation);
-        this.owner = owner;
-        this.federation = federation;
-    }
 
 
     @Override
@@ -98,7 +68,7 @@ public class FederatedDatacenterBrokerSimple extends DatacenterBrokerSimple {
 
         // if no datacenters can host the user VM, look on datacenters from other members of the federation
         ArrayList<FederatedDatacenter> datacentersFromOtherMembers = owner.getDatacentersFromOtherMembers();
-        if(datacentersFromOtherMembers.size() >0){
+        if(!datacentersFromOtherMembers.isEmpty()){
             return datacentersFromOtherMembers.get(0);
         }
 
@@ -123,9 +93,12 @@ public class FederatedDatacenterBrokerSimple extends DatacenterBrokerSimple {
             return cloudlet.getVm();
         }
         List<FederatedVmSimple> localVms = new ArrayList<>();
+
+        // TODO: talvez buscar em todos os datacenters faça mais sentido, pois buscando fora do datacenter local apenas
+        //  se não houver nenhum disponível irá sobrecarregar as vms rodando em datacenters do usuário antes de
+        //  espalhar para vms rodando em datacenters de outros membros da federação
         owner.getDatacenters().forEach(datacenter-> localVms.addAll(datacenter.getVmList().stream().
-            filter(vm -> vm instanceof FederatedVmSimple && ((FederatedVmSimple) vm).getVmOwner().
-                equals(((FederatedCloudletSimple) cloudlet).getOwner()) &&
+            filter(vm -> vm instanceof FederatedVmSimple &&
                 vmEligibleForCloudletFunction.apply((FederatedVmSimple) vm, (FederatedCloudletSimple) cloudlet)).
             map(vm-> (FederatedVmSimple) vm).toList()));
         if(!localVms.isEmpty()){
@@ -143,8 +116,7 @@ public class FederatedDatacenterBrokerSimple extends DatacenterBrokerSimple {
                 list1.addAll(list2);
                 return list1;
             }).stream().filter((FederatedVmSimple vm) ->
-                vm.getVmOwner().equals(((FederatedCloudletSimple) cloudlet).getOwner()) &&
-                    vmEligibleForCloudletFunction.apply(((FederatedVmSimple) vm), (FederatedCloudletSimple) cloudlet)).
+                    vmEligibleForCloudletFunction.apply(vm, (FederatedCloudletSimple) cloudlet)).
             collect(Collectors.toList());
 
         if(!vmsOnOtherMembersDatacenter.isEmpty()){
@@ -156,6 +128,11 @@ public class FederatedDatacenterBrokerSimple extends DatacenterBrokerSimple {
         return Vm.NULL;
 
 
+    }
+
+
+    public CloudFederation getFederation() {
+        return federation;
     }
     private List<Vm> sortVms(List<Vm> vms){
         return vms.stream().
@@ -179,9 +156,7 @@ public class FederatedDatacenterBrokerSimple extends DatacenterBrokerSimple {
         return datacenterForVmComparator;
     }
 
-    public void setDatacenterForVmComparator(Comparator<FederatedDatacenter> datacenterForVmComparator) {
-        this.datacenterForVmComparator = datacenterForVmComparator;
-    }
+
 
     public void setVmEligibleForCloudletFunction(BiFunction<FederatedVmSimple, FederatedCloudletSimple, Boolean> vmEligibleForCloudletFunction) {
         this.vmEligibleForCloudletFunction = vmEligibleForCloudletFunction;
