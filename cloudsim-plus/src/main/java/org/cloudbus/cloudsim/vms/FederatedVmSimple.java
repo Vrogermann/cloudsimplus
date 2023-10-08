@@ -12,6 +12,27 @@ public class FederatedVmSimple extends VmSimple{
         this.vmOwner = vmOwner;
     }
 
+    private String botJobId;
+
+    public String getBotJobId() {
+        return botJobId;
+    }
+
+    public void setBotJobId(String botJobId) {
+        this.botJobId = botJobId;
+    }
+
+    public Long getBotTaskNumber() {
+        return botTaskNumber;
+    }
+
+    public void setBotTaskNumber(Long botTaskNumber) {
+        this.botTaskNumber = botTaskNumber;
+    }
+
+    private Long botTaskNumber;
+
+
     public FederatedVmSimple(double mipsCapacity, long numberOfPes, Records.FederationMemberUser vmOwner) {
         super(mipsCapacity, numberOfPes);
         this.vmOwner = vmOwner;

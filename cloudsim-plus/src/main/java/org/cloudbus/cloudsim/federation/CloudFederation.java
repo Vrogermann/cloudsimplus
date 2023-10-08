@@ -1,6 +1,10 @@
 package org.cloudbus.cloudsim.federation;
 
+import org.cloudbus.cloudsim.datacenters.FederatedDatacenter;
+
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 /**
 Represents a Cloud federation, where different organizations can share datacenters
@@ -51,11 +55,27 @@ public class CloudFederation {
         member.setFederation(this);
         return true;
     }
+
+    public List<FederatedDatacenter> getAllDatacenters(){
+        return this.members.stream().map(FederationMember::getDatacenters).reduce(new ArrayList<>()
+            , (ArrayList<FederatedDatacenter> datacenterList, Set<FederatedDatacenter> datacenterSet) -> {
+                datacenterList.addAll(datacenterSet);
+                return datacenterList;
+            },
+            (ArrayList<FederatedDatacenter> accumulatedList1, ArrayList<FederatedDatacenter> accumulatedList2) ->
+            {
+                accumulatedList1.addAll(accumulatedList2);
+                return accumulatedList1;
+            });
+
+    }
+
     /**
      * removes a member from the Cloud Federation
      * @param member member to remove
      * @return true if the member was part of the federation, false otherwise
      */
+
     public boolean removeMember(FederationMember member){
         if(!members.contains(member)){
             return false;

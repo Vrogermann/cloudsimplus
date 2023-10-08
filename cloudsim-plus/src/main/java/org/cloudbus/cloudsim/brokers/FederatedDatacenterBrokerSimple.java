@@ -94,21 +94,8 @@ public class FederatedDatacenterBrokerSimple extends DatacenterBrokerSimple {
         }
         List<FederatedVmSimple> localVms = new ArrayList<>();
 
-        // TODO: talvez buscar em todos os datacenters faça mais sentido, pois buscando fora do datacenter local apenas
-        //  se não houver nenhum disponível irá sobrecarregar as vms rodando em datacenters do usuário antes de
-        //  espalhar para vms rodando em datacenters de outros membros da federação
-        owner.getDatacenters().forEach(datacenter-> localVms.addAll(datacenter.getVmList().stream().
-            filter(vm -> vm instanceof FederatedVmSimple &&
-                vmEligibleForCloudletFunction.apply((FederatedVmSimple) vm, (FederatedCloudletSimple) cloudlet)).
-            map(vm-> (FederatedVmSimple) vm).toList()));
-        if(!localVms.isEmpty()){
-            localVms.sort(vmComparator);
-            return localVms.get(0);
-        }
-
-        // if no datacenter from the user organization is currently hosting a vm from this user,
-        // expand search to datacenters owned by other members of the federation
-        List<FederatedVmSimple> vmsOnOtherMembersDatacenter = owner.getDatacentersFromOtherMembers().stream().
+       // apply cloudlet to VM mapping strategy on all VMs from all members of the federation
+        List<FederatedVmSimple> vms = owner.getFederation().getAllDatacenters().stream().
             reduce(new ArrayList<FederatedVmSimple>(), (accumulator, datacenter) -> {
                 accumulator.addAll(datacenter.getVmList());
                 return accumulator;
@@ -119,9 +106,11 @@ public class FederatedDatacenterBrokerSimple extends DatacenterBrokerSimple {
                     vmEligibleForCloudletFunction.apply(vm, (FederatedCloudletSimple) cloudlet)).
             collect(Collectors.toList());
 
-        if(!vmsOnOtherMembersDatacenter.isEmpty()){
-            vmsOnOtherMembersDatacenter.sort(vmComparator);
-            return vmsOnOtherMembersDatacenter.get(0);
+        if(!vms.isEmpty()){
+            if(vmComparator != null){
+                vms.sort(vmComparator);
+            }
+            return vms.get(0);
         }
 
         // if no VM can host the user cloudlet

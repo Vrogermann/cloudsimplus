@@ -9,6 +9,25 @@ public class FederatedCloudletSimple extends CloudletSimple{
     }
 
     private final Records.FederationMemberUser owner;
+    private String botJobId;
+
+    public String getBotJobId() {
+        return botJobId;
+    }
+
+    public void setBotJobId(String botJobId) {
+        this.botJobId = botJobId;
+    }
+
+    public Long getBotTaskNumber() {
+        return botTaskNumber;
+    }
+
+    public void setBotTaskNumber(Long botTaskNumber) {
+        this.botTaskNumber = botTaskNumber;
+    }
+
+    private Long botTaskNumber;
 
     public FederatedCloudletSimple(long length, int pesNumber, UtilizationModel utilizationModel, Records.FederationMemberUser owner) {
         super(length, pesNumber, utilizationModel);

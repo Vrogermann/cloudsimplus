@@ -70,6 +70,8 @@ public class FederationMember {
         this.broker = broker;
     }
 
+
+
     public CloudFederation getFederation() {
         return federation;
     }
