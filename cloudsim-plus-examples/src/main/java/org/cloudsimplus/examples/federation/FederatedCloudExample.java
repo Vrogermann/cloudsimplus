@@ -32,6 +32,7 @@ import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.datacenters.FederatedDatacenter;
 import org.cloudbus.cloudsim.federation.CloudFederation;
 import org.cloudbus.cloudsim.federation.FederationMember;
+import org.cloudbus.cloudsim.federation.FederationMemberUser;
 import org.cloudbus.cloudsim.hosts.Host;
 import org.cloudbus.cloudsim.hosts.HostSimple;
 import org.cloudbus.cloudsim.resources.Pe;
@@ -45,10 +46,12 @@ import org.cloudbus.cloudsim.vms.FederatedVmSimple;
 import org.cloudbus.cloudsim.vms.Vm;
 import org.cloudsimplus.builders.tables.CloudletsTableBuilder;
 import org.cloudsimplus.traces.ufpel.BoT;
+import org.cloudsimplus.traces.ufpel.ConvertedBoT;
 import org.cloudsimplus.util.Log;
 import org.cloudsimplus.util.*;
 
 import java.io.IOException;
+import java.net.URL;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -57,7 +60,7 @@ import static org.cloudbus.cloudsim.util.MathUtil.positive;
 
 
 public class FederatedCloudExample {
-    private static final String BOT_CSV_FILE = "X:\\tcc\\cloudsimplus\\cloudsim-plus-examples\\src\\main\\resources\\workload\\ufpel\\outputconverted.csv";
+    private static final URL BOT_CSV_FILE = FederatedCloudExample.class.getClassLoader().getResource("workload/ufpel/outputconverted.csv");
     private static final List<Records.University> UNIVERSITIES =
         Arrays.asList(new Records.University("Universidade Federal do Rio de Janeiro",
                 new Records.Coordinates(-22.862312050419078, -43.22317329523859),
@@ -172,7 +175,8 @@ public class FederatedCloudExample {
 
         simulation = new CloudSim();
         CloudFederation federation = new CloudFederation("Federal Universities of Brazil", 0L);
-        bagOfTasksList = BotFileReader.readBoTFile(BOT_CSV_FILE, 500L);
+
+        bagOfTasksList = BotFileReader.readBoTFile(BOT_CSV_FILE.getFile(), 500L);
         UNIVERSITIES.forEach(university -> {
             FederationMember federationMember = new FederationMember(university.name(), university.id(), federation, university.coordinates());
 
@@ -181,11 +185,11 @@ public class FederatedCloudExample {
 
             // aqui é definida a política de mapeamento de cloudlet para VM. nesse caso estão sendo filtradas
             // VMs que pertençam ao usuário, e que tenham os campos de id de job e numero de task iguais.
-            federationMember.getBroker().setVmEligibleForCloudletFunction((vm, cloudlet)->
+            federationMember.getBroker().setVmEligibleForCloudletFunction((vm, cloudlet) ->
                 cloudlet.getOwner().equals(vm.getVmOwner()) && vm.getBotJobId() != null
                     && vm.getBotJobId().equals(cloudlet.getBotJobId()) &&
-                        Objects.equals(vm.getBotTaskNumber(), cloudlet.getBotTaskNumber()));
-            federationMember.getBroker().setName("broker_" +university.name().replace(" ", "_"));
+                    Objects.equals(vm.getBotTaskNumber(), cloudlet.getBotTaskNumber()));
+            federationMember.getBroker().setName("broker_" + university.name().replace(" ", "_"));
 
             federationMember.setDatacenters(Set.copyOf(createDatacenters(federationMember, university)));
             List<FederatedCloudletSimple> cloudlets = createCloudlets(university, federationMember);
@@ -193,7 +197,6 @@ public class FederatedCloudExample {
             federationMember.getBroker().submitVmList(Vms);
             federationMember.getBroker().submitCloudletList(cloudlets);
         });
-
 
 
         simulation.start();
@@ -206,11 +209,11 @@ public class FederatedCloudExample {
     }
 
     private List<Vm> createVmList(List<FederatedCloudletSimple> cloudlets) {
-        return cloudlets.stream().map(cloudlet-> {
+        return cloudlets.stream().map(cloudlet -> {
             final FederatedVmSimple vm = new FederatedVmSimple(HOST_MIPS, 1, cloudlet.getOwner());
-            vm.setRam(HOST_RAM/ HOST_PES).
-                setBw(HOST_BW/HOST_PES).
-                setSize(HOST_STORAGE/4).
+            vm.setRam(HOST_RAM / HOST_PES).
+                setBw(HOST_BW / HOST_PES).
+                setSize(HOST_STORAGE / 4).
                 setCloudletScheduler(new CloudletSchedulerTimeShared())
                 .setSubmissionDelay(cloudlet.getSubmissionDelay());
             vm.setBotJobId(cloudlet.getBotJobId());
@@ -218,10 +221,6 @@ public class FederatedCloudExample {
             return vm;
         }).collect(Collectors.toList());
     }
-
-
-
-
 
 
     private List<FederatedDatacenter> createDatacenters(FederationMember federationMember, Records.University university) {
@@ -235,23 +234,21 @@ public class FederatedCloudExample {
             }
 
 
-
-
             FederatedDatacenter federatedDatacenter = new FederatedDatacenter(simulation, hostList, federationMember);
 
             federatedDatacenter.
                 setVmAllocationPolicy(vmAllocationFirstFit(federationMember));
-            federatedDatacenter.setName(String.format("datacenter_%s:_number_%d",university.name().replace(" ","_"), currentDatacenter));
+            federatedDatacenter.setName(String.format("datacenter_%s:_number_%d", university.name().replace(" ", "_"), currentDatacenter));
             datacenters.add(federatedDatacenter);
         }
         return datacenters;
     }
 
-    private FederatedVmAllocationPolicy vmAllocationFirstFit(FederationMember federationMember){
+    private FederatedVmAllocationPolicy vmAllocationFirstFit(FederationMember federationMember) {
         return new FederatedVmAllocationPolicy(federationMember,
             federationMember.getFederation(),
-            (datacenter, vm)-> datacenter.getHostList().stream().anyMatch(host-> host.getFreePesNumber() >= vm.getExpectedFreePesNumber())
-            ,null, (host, vm)-> host.getFreePesNumber() >= vm.getExpectedFreePesNumber()
+            (datacenter, vm) -> datacenter.getHostList().stream().anyMatch(host -> host.getFreePesNumber() >= vm.getExpectedFreePesNumber())
+            , null, (host, vm) -> host.getFreePesNumber() >= vm.getExpectedFreePesNumber()
             && vm.getCurrentRequestedRam() <= host.getRam().getAvailableResource()
             && host.getAvailableStorage() >= vm.getStorage().getCapacity(), null);
     }
@@ -273,18 +270,28 @@ public class FederatedCloudExample {
     }
 
 
+    private List<FederatedCloudletSimple> createCloudlets(Records.University university,
+                                                          FederationMember federationMember) {
+        int requiredCloudlets = currentBotIndex + (university.BoTsPerUser() * university.numberOfUsers());
+        if (requiredCloudlets >= bagOfTasksList.size()) {
+            throw new RuntimeException(String.format("Não há BoTs suficientes para executar a simulação, " +
+                    "foram requisitados {0} mas a lista de BoTs só contem {1} itens.",
+                requiredCloudlets,
+                bagOfTasksList.size()));
+        }
 
 
-    private List<FederatedCloudletSimple> createCloudlets(Records.University university, FederationMember federationMember) {
-        final List<FederatedCloudletSimple> list = new ArrayList<>(university.cloudletsPerUser());
+        final List<FederatedCloudletSimple> list = new ArrayList<>(university.BoTsPerUser());
 
-        for (int currentUser = 0; currentUser < university.numberOfUsers(); currentUser++) {
-            Records.FederationMemberUser user = new Records.FederationMemberUser((long) currentUser, federationMember);
+        for (
+            int currentUser = 0; currentUser < university.numberOfUsers(); currentUser++) {
+            FederationMemberUser user = new FederationMemberUser(federationMember, (long) currentUser);
 
-            for (int i = 0; i < university.cloudletsPerUser(); i++) {
-                BoT currentBoT = bagOfTasksList.get(currentBotIndex);
+
+            for (int i = 0; i < university.BoTsPerUser(); i++) {
+                BoT currentBoT = bagOfTasksList.get(currentBotIndex % bagOfTasksList.size());
                 List<FederatedCloudletSimple> cloudlets = createAllCloudletsFromBoT(currentBoT, user);
-
+                federationMember.addUser(user);
                 list.addAll(cloudlets);
 
                 currentBotIndex++;
@@ -294,18 +301,23 @@ public class FederatedCloudExample {
         return list;
     }
 
-    private List<FederatedCloudletSimple> createAllCloudletsFromBoT(BoT currentBoT, Records.FederationMemberUser user) {
+    private List<FederatedCloudletSimple> createAllCloudletsFromBoT(BoT currentBoT, FederationMemberUser user) {
         List<FederatedCloudletSimple> cloudlets = new ArrayList<>(currentBoT.getNumberOfTasks().intValue());
-        for(int currentCloudlet = 0; currentCloudlet < currentBoT.getNumberOfTasks(); currentCloudlet++){
+        ConvertedBoT convertedBoT = new ConvertedBoT(currentBoT, user);
+        for (int currentCloudlet = 0; currentCloudlet < currentBoT.getNumberOfTasks(); currentCloudlet++) {
             FederatedCloudletSimple cloudlet = createCloudletFromBoT(currentBoT, user);
             cloudlet.setBotJobId(currentBoT.getJobId());
+            cloudlet.setBoT(convertedBoT);
             cloudlet.setBotTaskNumber((long) currentCloudlet);
             cloudlets.add(cloudlet);
+            convertedBoT.addTask(cloudlet);
         }
+
+        user.addBoT(convertedBoT);
         return cloudlets;
     }
 
-    private FederatedCloudletSimple createCloudletFromBoT(BoT bot, Records.FederationMemberUser user) {
+    private FederatedCloudletSimple createCloudletFromBoT(BoT bot, FederationMemberUser user) {
 
         final double maxRamUsagePercent = positive(bot.getTaskRamUsage(), Conversion.HUNDRED_PERCENT);
         final UtilizationModelConstant utilizationRam = new UtilizationModelConstant(maxRamUsagePercent);

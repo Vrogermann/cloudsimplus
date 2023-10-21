@@ -92,19 +92,12 @@ public class FederatedDatacenterBrokerSimple extends DatacenterBrokerSimple {
         if (cloudlet.isBoundToVm()) {
             return cloudlet.getVm();
         }
-        List<FederatedVmSimple> localVms = new ArrayList<>();
-
-       // apply cloudlet to VM mapping strategy on all VMs from all members of the federation
-        List<FederatedVmSimple> vms = owner.getFederation().getAllDatacenters().stream().
-            reduce(new ArrayList<FederatedVmSimple>(), (accumulator, datacenter) -> {
-                accumulator.addAll(datacenter.getVmList());
-                return accumulator;
-            }, (list1, list2) -> {
-                list1.addAll(list2);
-                return list1;
-            }).stream().filter((FederatedVmSimple vm) ->
-                    vmEligibleForCloudletFunction.apply(vm, (FederatedCloudletSimple) cloudlet)).
-            collect(Collectors.toList());
+        List<Vm> allBrokerVms = new ArrayList<>();
+        allBrokerVms.addAll(getVmCreatedList());
+        allBrokerVms.addAll(getVmWaitingList());
+        List<FederatedVmSimple> vms = allBrokerVms.stream().filter( vm -> vmEligibleForCloudletFunction.
+                apply((FederatedVmSimple) vm, (FederatedCloudletSimple) cloudlet)).map(vm-> (FederatedVmSimple) vm).
+        collect(Collectors.toList());
 
         if(!vms.isEmpty()){
             if(vmComparator != null){

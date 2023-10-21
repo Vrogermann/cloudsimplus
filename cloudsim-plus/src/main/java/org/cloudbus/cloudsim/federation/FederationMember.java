@@ -17,7 +17,7 @@ public class FederationMember {
     private CloudFederation federation;
     private FederatedDatacenterBrokerSimple broker;
     private Records.Coordinates coordinates;
-    private List<Records.FederationMemberUser> userList;
+    private List<FederationMemberUser> userList;
 
     /**
      * Creates a member of a Cloud Federation
@@ -120,4 +120,25 @@ public class FederationMember {
     public void setDatacenters(Set<FederatedDatacenter> datacenters) {
         this.datacenters = datacenters;
     }
+
+    public List<FederationMemberUser> getUserList() {
+        return userList;
+    }
+
+    public boolean addUser(FederationMemberUser user) {
+        if (userList.contains(user)){
+            return false;
+        }
+        userList.add(user);
+        return true;
+    }
+
+    public boolean removeUser(FederationMemberUser user) {
+        if (userList.contains(user)){
+            return false;
+        }
+        userList.remove(user);
+        return true;
+    }
+
 }

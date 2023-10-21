@@ -104,7 +104,7 @@ public class FederatedVmAllocationPolicy extends VmAllocationPolicyAbstract {
             LOGGER.error("VM is not a FederatedVmSimple instance");
             throw new RuntimeException("FederatedDatacenter received non FederatedVmSimple instance");
         }
-        FederationMember vmOwner = ((FederatedVmSimple) vm).getVmOwner().member();
+        FederationMember vmOwner = ((FederatedVmSimple) vm).getVmOwner().getFederationMember();
         // looks for the best datacenter of the user to place the VM
         List<FederatedDatacenter> datacentersFromUserThatCanSupportTheVm = vmOwner.getDatacenters().stream().filter(datacenter -> datacenterEligibleForVMFunction.apply(datacenter,vm)).
             collect(Collectors.toList());
