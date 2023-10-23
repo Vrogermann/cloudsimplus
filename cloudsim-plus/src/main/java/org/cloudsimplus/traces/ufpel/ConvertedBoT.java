@@ -39,22 +39,12 @@ public class ConvertedBoT {
         this.owner = owner;
     }
 
-    public int addTasks(List<FederatedCloudletSimple> tasksToAdd) {
-        int totalAdded = 0;
-        for(int currentTask = 0; currentTask< tasksToAdd.size();currentTask++){
-            if(addTask(tasksToAdd.get(currentTask))){
-                totalAdded++;
-            }
-        }
-        return totalAdded;
+    public void addTasks(List<FederatedCloudletSimple> tasksToAdd) {
+        tasks.addAll(tasksToAdd);
     }
 
-    public boolean addTask(FederatedCloudletSimple task) {
-        if (this.tasks.contains(task)){
-            return false;
-        }
+    public void addTask(FederatedCloudletSimple task) {
         this.tasks.add(task);
-        return true;
     }
 
 }
