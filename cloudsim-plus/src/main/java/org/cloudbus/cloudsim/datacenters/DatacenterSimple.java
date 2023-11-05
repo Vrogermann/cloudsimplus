@@ -559,7 +559,8 @@ public class DatacenterSimple extends CloudSimEntity implements Datacenter {
      */
     private boolean processVmCreate(final SimEvent evt) {
         final Vm vm = (Vm) evt.getData();
-
+        LOGGER.info(
+            "{}: {}: iniciando criação da vm {} enviada pelo broker {}",getSimulation().clockStr(), this.getName(), vm, vm.getBroker());
         final boolean hostAllocatedForVm = vmAllocationPolicy.allocateHostForVm(vm).fully();
         if (hostAllocatedForVm) {
             vm.updateProcessing(vm.getHost().getVmScheduler().getAllocatedMips(vm));
@@ -891,6 +892,7 @@ public class DatacenterSimple extends CloudSimEntity implements Datacenter {
     @Override
     protected void startInternal() {
         LOGGER.info("{}: {} is starting...", getSimulation().clockStr(), getName());
+        LOGGER.info("{}: {} se cadastrou no CIS", getSimulation().clockStr(), getName());
         sendNow(getSimulation().getCloudInfoService(), CloudSimTags.DC_REGISTRATION_REQUEST, this);
     }
 

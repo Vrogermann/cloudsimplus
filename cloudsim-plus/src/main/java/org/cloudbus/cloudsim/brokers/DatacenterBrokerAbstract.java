@@ -628,7 +628,7 @@ public abstract class DatacenterBrokerAbstract extends CloudSimEntity implements
      */
     private void processDatacenterListRequest(final SimEvent evt) {
         setDatacenterList((Set<Datacenter>) evt.getData());
-        LOGGER.info("{}: {}: List of {} datacenters(s) received.", getSimulation().clockStr(), getName(), datacenterList.size());
+        LOGGER.info("{}: {}: broker {} recebeu lista de {} datacenters.", getSimulation().clockStr(), getName(), this.getName() ,datacenterList.size());
         requestDatacenterToCreateWaitingVms(false, false);
     }
 
@@ -953,11 +953,11 @@ public abstract class DatacenterBrokerAbstract extends CloudSimEntity implements
         final String fallbackMsg = isFallbackDatacenter ? " (due to lack of a suitable Host in previous one)" : "";
         if(vm.getSubmissionDelay() == 0)
             LOGGER.info(
-                "{}: {}: Trying to create {} in {}{}",
+                "{}: {}: broker enviou vm {} para o datacenter  in {}{}",
                 getSimulation().clockStr(), getName(), vm, datacenter.getName(), fallbackMsg);
         else
             LOGGER.info(
-                "{}: {}: Creation of {} in {}{} will be requested in {} seconds",
+                "{}: {}: broker vai esperar para mandar a vm {} para o datacenter {}{} em {} seconds",
                 getSimulation().clockStr(), getName(), vm, datacenter.getName(),
                 fallbackMsg, vm.getSubmissionDelay());
     }
@@ -1067,7 +1067,7 @@ public abstract class DatacenterBrokerAbstract extends CloudSimEntity implements
 
     @Override
     public void startInternal() {
-        LOGGER.info("{} is starting...", getName());
+        LOGGER.info("{} solicitou lista de datacenters para o CIS...", getName());
         schedule(getSimulation().getCloudInfoService(), 0, CloudSimTags.DC_LIST_REQUEST);
     }
 

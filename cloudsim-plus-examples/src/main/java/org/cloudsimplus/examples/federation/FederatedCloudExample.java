@@ -60,14 +60,14 @@ import static org.cloudbus.cloudsim.util.MathUtil.positive;
 
 
 public class FederatedCloudExample {
-    private static final URL BOT_CSV_FILE = FederatedCloudExample.class.getClassLoader().getResource("workload/ufpel/outputconverted.csv");
+    private static final URL BOT_CSV_FILE = FederatedCloudExample.class.getClassLoader().getResource("workload/ufpel/sampleBoTs.csv");
     private static final List<Records.University> UNIVERSITIES =
         Arrays.asList(new Records.University("Universidade Federal do Rio de Janeiro",
                 new Records.Coordinates(-22.862312050419078, -43.22317329523859),
                 0,
                 1,
                 1,
-                100,
+                8,
                 1),
             new Records.University("Universidade Federal de São Paulo (UNIFESP)",
                 new Records.Coordinates(-23.598773, -46.643422),
@@ -75,7 +75,7 @@ public class FederatedCloudExample {
                 1,
                 100,
                 1,
-                1));
+                4));
     private static final List<Records.University> UNIVERSITIES_FULL =
         Arrays.asList(new Records.University("Universidade Federal do Rio de Janeiro",
                 new Records.Coordinates(-22.862312050419078, -43.22317329523859),
@@ -210,7 +210,10 @@ public class FederatedCloudExample {
 
     private List<Vm> createVmList(List<FederatedCloudletSimple> cloudlets) {
         return cloudlets.stream().map(cloudlet -> {
-            final FederatedVmSimple vm = new FederatedVmSimple(HOST_MIPS, 1, cloudlet.getOwner());
+            final FederatedVmSimple vm = new FederatedVmSimple(HOST_MIPS,
+                1,
+                cloudlet.getOwner(),
+                cloudlet.getBoT() );
             vm.setRam(HOST_RAM / HOST_PES).
                 setBw(HOST_BW / HOST_PES).
                 setSize(HOST_STORAGE / 4).
