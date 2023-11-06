@@ -27,6 +27,7 @@ import org.cloudbus.cloudsim.datacenters.FederatedDatacenter;
 import org.cloudbus.cloudsim.federation.CloudFederation;
 import org.cloudbus.cloudsim.federation.FederationMember;
 import org.cloudbus.cloudsim.hosts.Host;
+import org.cloudbus.cloudsim.hosts.HostSuitability;
 import org.cloudbus.cloudsim.vms.FederatedVmSimple;
 import org.cloudbus.cloudsim.vms.Vm;
 
@@ -95,6 +96,27 @@ public class FederatedVmAllocationPolicy extends VmAllocationPolicyAbstract {
     }
 
 
+    @Override
+    public HostSuitability allocateHostForVm(final Vm vm) {
+        if (federation.getAllDatacenters().stream().allMatch(federatedDatacenter -> federatedDatacenter.getHostList().isEmpty())) {
+            LOGGER.error(
+                "{}: {}: {} could not be allocated because there isn't any Host for Datacenter {}",
+                vm.getSimulation().clockStr(), getClass().getSimpleName(), vm, getDatacenter().getId());
+            return new HostSuitability("Datacenter has no host.");
+        }
+
+        if (vm.isCreated()) {
+            return new HostSuitability("VM is already created");
+        }
+
+        final Optional<Host> optional = findHostForVm(vm);
+        if (optional.filter(Host::isActive).isPresent()) {
+            return allocateHostForVm(vm, optional.get());
+        }
+
+        LOGGER.warn("{}: {}: No suitable host found for {} in {}", vm.getSimulation().clockStr(), getClass().getSimpleName(), vm, this.getDatacenter());
+        return new HostSuitability("No suitable host found");
+    }
 
     @Override
     protected Optional<Host> defaultFindHostForVm(final Vm vm) {

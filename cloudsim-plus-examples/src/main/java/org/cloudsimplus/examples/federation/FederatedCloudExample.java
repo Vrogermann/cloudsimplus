@@ -33,6 +33,7 @@ import org.cloudbus.cloudsim.datacenters.FederatedDatacenter;
 import org.cloudbus.cloudsim.federation.CloudFederation;
 import org.cloudbus.cloudsim.federation.FederationMember;
 import org.cloudbus.cloudsim.federation.FederationMemberUser;
+import org.cloudbus.cloudsim.hosts.FederatedHostSimple;
 import org.cloudbus.cloudsim.hosts.Host;
 import org.cloudbus.cloudsim.hosts.HostSimple;
 import org.cloudbus.cloudsim.resources.Pe;
@@ -183,7 +184,7 @@ public class FederatedCloudExample {
             federation.addMember(federationMember);
             federationMember.setBroker(new FederatedDatacenterBrokerSimple(simulation, federationMember, federation));
 
-            // aqui é definida a política de mapeamento de cloudlet para VM. nesse caso estão sendo filtradas
+            // Aqui é definida a política de mapeamento de cloudlet para VM. nesse caso estão sendo filtradas
             // VMs que pertençam ao usuário, e que tenham os campos de id de job e numero de task iguais.
             federationMember.getBroker().setVmEligibleForCloudletFunction((vm, cloudlet) ->
                 cloudlet.getOwner().equals(vm.getVmOwner()) && vm.getBotJobId() != null
@@ -221,6 +222,7 @@ public class FederatedCloudExample {
                 .setSubmissionDelay(cloudlet.getSubmissionDelay());
             vm.setBotJobId(cloudlet.getBotJobId());
             vm.setBotTaskNumber(cloudlet.getBotTaskNumber());
+            cloudlet.getBoT().addVm(vm);
             return vm;
         }).collect(Collectors.toList());
     }
@@ -237,10 +239,8 @@ public class FederatedCloudExample {
             }
 
 
-            FederatedDatacenter federatedDatacenter = new FederatedDatacenter(simulation, hostList, federationMember);
+            FederatedDatacenter federatedDatacenter = new FederatedDatacenter(simulation, hostList,vmAllocationFirstFit(federationMember), federationMember);
 
-            federatedDatacenter.
-                setVmAllocationPolicy(vmAllocationFirstFit(federationMember));
             federatedDatacenter.setName(String.format("datacenter_%s:_number_%d", university.name().replace(" ", "_"), currentDatacenter));
             datacenters.add(federatedDatacenter);
         }
@@ -269,7 +269,7 @@ public class FederatedCloudExample {
         Uses ResourceProvisionerSimple by default for RAM and BW provisioning
         and VmSchedulerSpaceShared for VM scheduling.
         */
-        return new HostSimple(HOST_RAM, HOST_BW, HOST_STORAGE, peList);
+        return new FederatedHostSimple(HOST_RAM, HOST_BW, HOST_STORAGE, peList);
     }
 
 

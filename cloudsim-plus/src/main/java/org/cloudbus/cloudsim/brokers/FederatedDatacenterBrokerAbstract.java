@@ -9,6 +9,7 @@ package org.cloudbus.cloudsim.brokers;
 
 import org.cloudbus.cloudsim.cloudlets.Cloudlet;
 import org.cloudbus.cloudsim.cloudlets.CloudletSimple;
+import org.cloudbus.cloudsim.cloudlets.FederatedCloudletSimple;
 import org.cloudbus.cloudsim.core.*;
 import org.cloudbus.cloudsim.core.events.CloudSimEvent;
 import org.cloudbus.cloudsim.core.events.SimEvent;
@@ -16,6 +17,7 @@ import org.cloudbus.cloudsim.datacenters.Datacenter;
 import org.cloudbus.cloudsim.datacenters.TimeZoned;
 import org.cloudbus.cloudsim.schedulers.cloudlet.CloudletScheduler;
 import org.cloudbus.cloudsim.utilizationmodels.UtilizationModel;
+import org.cloudbus.cloudsim.vms.FederatedVmSimple;
 import org.cloudbus.cloudsim.vms.Vm;
 import org.cloudbus.cloudsim.vms.VmGroup;
 import org.cloudbus.cloudsim.vms.VmSimple;
@@ -38,7 +40,7 @@ import static java.util.Objects.requireNonNull;
  * @author Anton Beloglazov
  * @author Manoel Campos da Silva Filho
  */
-public abstract class DatacenterBrokerAbstract extends CloudSimEntity implements DatacenterBroker {
+public abstract class FederatedDatacenterBrokerAbstract extends CloudSimEntity implements DatacenterBroker {
     /**
      * A message tag used for the broker to send a message to itself requesting the shutdown.
      * That ensures a graceful shutdown, after other broker events are processed.
@@ -156,7 +158,7 @@ public abstract class DatacenterBrokerAbstract extends CloudSimEntity implements
      * @param simulation the CloudSim instance that represents the simulation the Entity is related to
      * @param name the DatacenterBroker name
      */
-    public DatacenterBrokerAbstract(final CloudSim simulation, final String name) {
+    public FederatedDatacenterBrokerAbstract(final CloudSim simulation, final String name) {
         super(simulation);
         if(!name.isEmpty()) {
             setName(name);
@@ -640,7 +642,7 @@ public abstract class DatacenterBrokerAbstract extends CloudSimEntity implements
      * @return true if the VM was created successfully, false otherwise
      */
     private boolean processVmCreateResponseFromDatacenter(final SimEvent evt) {
-        final Vm vm = (Vm) evt.getData();
+        final FederatedVmSimple vm = (FederatedVmSimple) evt.getData();
 
         //if the VM was successfully created in the requested Datacenter
         if (vm.isCreated()) {
@@ -733,7 +735,7 @@ public abstract class DatacenterBrokerAbstract extends CloudSimEntity implements
      *                             false to indicate it will try the default datacenter.
      * @return true if some Datacenter was selected, false if all Datacenter were tried
      *         and not all VMs could be created
-     * @see #submitVmList(java.util.List)
+     * @see #submitVmList(List)
      */
     private boolean requestDatacenterToCreateWaitingVms(final boolean isFallbackDatacenter, final boolean creationRetry) {
         for (final Vm vm : vmWaitingList) {
@@ -778,6 +780,28 @@ public abstract class DatacenterBrokerAbstract extends CloudSimEntity implements
             return;
         }
 
+        if(vm.getSubmissionDelay() > 0){
+            FederatedVmSimple federatedVmSimple = (FederatedVmSimple) vm;
+            // selects a VM for the given Cloudlet
+            FederatedCloudletSimple cloudlet = federatedVmSimple.getBoT().getTasks().
+                get(Math.toIntExact(federatedVmSimple.getBotTaskNumber()));
+            Vm selectedVM = vmMapper.apply(cloudlet);
+            if (!selectedVM.isCreated()) {
+                logPostponingCloudletExecution(cloudlet);
+            }
+
+            ((FederatedVmSimple) selectedVM).removeExpectedFreePesNumber(cloudlet.getNumberOfPes());
+
+            logCloudletCreationRequest(cloudlet);
+            cloudlet.setVm(selectedVM);
+            send(getDatacenter(selectedVM),
+                0, CloudSimTags.CLOUDLET_SUBMIT, cloudlet);
+            cloudlet.setLastTriedDatacenter(getDatacenter(selectedVM));
+            cloudletsCreatedList.add(cloudlet);
+            cloudletWaitingList.remove(cloudlet);
+
+        }
+
         vmWaitingList.remove(vm);
         vmExecList.add(vm);
         vmCreatedList.add(vm);
@@ -791,15 +815,10 @@ public abstract class DatacenterBrokerAbstract extends CloudSimEntity implements
     private boolean processCloudletReturn(final SimEvent evt) {
         final Cloudlet cloudlet = (Cloudlet) evt.getData();
         cloudletsFinishedList.add(cloudlet);
-        ((VmSimple) cloudlet.getVm()).addExpectedFreePesNumber(cloudlet.getNumberOfPes());
+        Vm vm = ((VmSimple) cloudlet.getVm()).addExpectedFreePesNumber(cloudlet.getNumberOfPes());
         LOGGER.info("{}: {}: {} finished in {} and returned to broker.", getSimulation().clockStr(), getName(), cloudlet, cloudlet.getVm());
-
-        if (cloudlet.getVm().getCloudletScheduler().isEmpty()) {
-            requestIdleVmDestruction(cloudlet.getVm());
-            return true;
-        }
-
-        requestVmDestructionAfterAllCloudletsFinished();
+        LOGGER.info("{}: {}: Requesting {} destruction.", getSimulation().clockStr(), getName(), vm);
+        sendNow(getDatacenter(vm), CloudSimTags.VM_DESTROY, vm);
         return true;
     }
 
@@ -953,7 +972,7 @@ public abstract class DatacenterBrokerAbstract extends CloudSimEntity implements
         final String fallbackMsg = isFallbackDatacenter ? " (due to lack of a suitable Host in previous one)" : "";
         if(vm.getSubmissionDelay() == 0)
             LOGGER.info(
-                "{}: {}: broker enviou vm {} para o datacenter {}{}",
+                "{}: {}: broker enviou vm {} para o datacenter  in {}{}",
                 getSimulation().clockStr(), getName(), vm, datacenter.getName(), fallbackMsg);
         else
             LOGGER.info(
@@ -971,7 +990,8 @@ public abstract class DatacenterBrokerAbstract extends CloudSimEntity implements
      * <p>This method is called after all submitted VMs are created
      * in some Datacenter.</p>
      *
-     * @see #submitCloudletList(java.util.List)
+     * @see #submitCloudletList(List)
+     *
      */
     protected void requestDatacentersToCreateWaitingCloudlets() {
         /* Uses Iterator to remove Cloudlets from the waiting list
@@ -981,19 +1001,19 @@ public abstract class DatacenterBrokerAbstract extends CloudSimEntity implements
          * degrading performance in large scale simulations. */
         int createdCloudlets = 0;
         for (final Iterator<Cloudlet> it = cloudletWaitingList.iterator(); it.hasNext(); ) {
-            final CloudletSimple cloudlet = (CloudletSimple)it.next();
+            final FederatedCloudletSimple cloudlet = (FederatedCloudletSimple)it.next();
             if (!cloudlet.getLastTriedDatacenter().equals(Datacenter.NULL)) {
                 continue;
             }
 
-            //selects a VM for the given Cloudlet
+            // selects a VM for the given Cloudlet
             lastSelectedVm = vmMapper.apply(cloudlet);
             if (!lastSelectedVm.isCreated()) {
                 logPostponingCloudletExecution(cloudlet);
                 continue;
             }
 
-            ((VmSimple) lastSelectedVm).removeExpectedFreePesNumber(cloudlet.getNumberOfPes());
+            ((FederatedVmSimple) lastSelectedVm).removeExpectedFreePesNumber(cloudlet.getNumberOfPes());
 
             logCloudletCreationRequest(cloudlet);
             cloudlet.setVm(lastSelectedVm);

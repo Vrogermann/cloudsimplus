@@ -4,7 +4,7 @@ import org.cloudbus.cloudsim.federation.FederationMemberUser;
 import org.cloudbus.cloudsim.schedulers.cloudlet.CloudletScheduler;
 import org.cloudsimplus.traces.ufpel.ConvertedBoT;
 
-public class FederatedVmSimple extends VmSimple{
+public class FederatedVmSimple extends VmSimple implements Vm{
 
     private final FederationMemberUser vmOwner;
 

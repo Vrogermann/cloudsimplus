@@ -10,6 +10,8 @@ package org.cloudbus.cloudsim.brokers;
 import org.cloudbus.cloudsim.cloudlets.Cloudlet;
 import org.cloudbus.cloudsim.cloudlets.FederatedCloudletSimple;
 import org.cloudbus.cloudsim.core.CloudSim;
+import org.cloudbus.cloudsim.core.CustomerEntity;
+import org.cloudbus.cloudsim.core.Simulation;
 import org.cloudbus.cloudsim.datacenters.Datacenter;
 import org.cloudbus.cloudsim.datacenters.FederatedDatacenter;
 import org.cloudbus.cloudsim.federation.CloudFederation;
@@ -17,6 +19,7 @@ import org.cloudbus.cloudsim.federation.FederationMember;
 import org.cloudbus.cloudsim.hosts.Host;
 import org.cloudbus.cloudsim.vms.FederatedVmSimple;
 import org.cloudbus.cloudsim.vms.Vm;
+import org.cloudbus.cloudsim.vms.VmGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,7 +28,7 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 
-public class FederatedDatacenterBrokerSimple extends DatacenterBrokerSimple {
+public class FederatedDatacenterBrokerSimple extends FederatedDatacenterBrokerAbstract {
 
     Logger LOGGER = LoggerFactory.getLogger(FederatedDatacenterBrokerSimple.class.getSimpleName());
     private final FederationMember owner;
@@ -50,12 +53,30 @@ public class FederatedDatacenterBrokerSimple extends DatacenterBrokerSimple {
 
     public FederatedDatacenterBrokerSimple(final CloudSim simulation,
                                            FederationMember owner, CloudFederation federation) {
-        super(simulation);
+        super(simulation, "broker_" + owner.getName().replace(" ", "_"));
         this.owner = owner;
         this.federation = federation;
     }
 
 
+    private void sortVmsIfComparatorIsSet(final List<? extends Vm> list) {
+        if (vmComparator != null) {
+            if(list.stream().anyMatch(vm-> ! (vm instanceof FederatedVmSimple))){
+                throw new UnsupportedOperationException("Non Federated Vm Submited to federated Broker, unable to continue");
+            }
+            ((List<FederatedVmSimple>) list).sort((vmComparator));
+        }
+    }
+
+    private void configureEntities(final List<? extends CustomerEntity> customerEntities) {
+        for (final CustomerEntity entity : customerEntities) {
+            entity.setBroker(this);
+            entity.setArrivedTime(getSimulation().clock());
+            if(entity instanceof VmGroup) {
+                configureEntities(((VmGroup)entity).getVmList());
+            }
+        }
+    }
 
     @Override
     protected Datacenter defaultDatacenterMapper(final Datacenter lastDatacenter, final Vm vm) {
