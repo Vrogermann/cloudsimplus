@@ -11,6 +11,7 @@ import java.util.Set;
 
 public class FederationMember {
 
+    private final String abbreviation;
     private String name;
     private Integer id;
     private Set<FederatedDatacenter> datacenters;
@@ -21,14 +22,17 @@ public class FederationMember {
 
     /**
      * Creates a member of a Cloud Federation
-     * @param name name of the member
-     * @param id of the member
-     * @param datacenters set of all the datacenters of the member
-     * @param federation federation the member is part of
-* if federation is non-null, also calls the method {@link CloudFederation#addMember(FederationMember)}}
+     *
+     * @param abbreviation
+     * @param name         name of the member
+     * @param id           of the member
+     * @param datacenters  set of all the datacenters of the member
+     * @param federation   federation the member is part of
+     *                     if federation is non-null, also calls the method {@link CloudFederation#addMember(FederationMember)}}
      * @param coordinates
      */
-    public FederationMember(String name, Integer id, Set<FederatedDatacenter> datacenters, CloudFederation federation, Records.Coordinates coordinates) {
+    public FederationMember(String abbreviation, String name, Integer id, Set<FederatedDatacenter> datacenters, CloudFederation federation, Records.Coordinates coordinates) {
+        this.abbreviation = abbreviation;
         this.name = name;
         this.id = id;
         this.datacenters = datacenters;
@@ -88,8 +92,9 @@ public class FederationMember {
         this.coordinates = coordinates;
     }
 
-    public FederationMember(String name, Integer id, CloudFederation federation, Records.Coordinates coordinates) {
+    public FederationMember(String name, String abbreviation, Integer id, CloudFederation federation, Records.Coordinates coordinates) {
         this.name = name;
+        this.abbreviation = abbreviation;
         this.id = id;
         this.federation = federation;
         this.coordinates = coordinates;
@@ -141,4 +146,7 @@ public class FederationMember {
         return true;
     }
 
+    public String getAbbreviation() {
+        return abbreviation;
+    }
 }

@@ -24,6 +24,8 @@ public class FederationMemberUser {
     private Long id;
     private List<ConvertedBoT> bots;
 
+    private final String name;
+
     public int addBoTs(List<ConvertedBoT> botsToAdd) {
         int totalAdded = 0;
         for(int currentBoT = 0; currentBoT< botsToAdd.size();currentBoT++){
@@ -46,11 +48,17 @@ public class FederationMemberUser {
         this.federationMember = federationMember;
         this.id = id;
         this.bots = bots;
+        this.name = federationMember.getAbbreviation() + " " + id;
     }
 
     public FederationMemberUser(FederationMember federationMember, Long id) {
         this.federationMember = federationMember;
         this.id = id;
         this.bots = new ArrayList<>();
+        this.name = federationMember.getAbbreviation() + " " + id;
+    }
+
+    public String getName() {
+        return name;
     }
 }

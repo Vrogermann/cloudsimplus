@@ -14,13 +14,15 @@ public class BotFileReader {
     private static final String delimiter = ",";
     private static final String fileLocation = "X:\\tcc\\cloudsimplus\\cloudsim-plus-examples\\src\\main\\resources\\workload\\ufpel\\sampleBoTs.csv";
 
-    public static List<BoT> readBoTFile(String filepath, Long lineLimit) throws IOException {
+    public static List<BoT> readBoTFile(String filepath, Long lineLimit, boolean normalizeCreationTime) throws IOException {
+
         List<BoT> result = new ArrayList<>();
 
         File file = new File(filepath);
         FileReader fr = new FileReader(file);
         BufferedReader br = new BufferedReader(fr);
         String line;
+        Long firstNonZeroCreationTime = 0L;
 
         // Read the first line to get the headers and their indexes
         line = br.readLine();
@@ -59,8 +61,20 @@ public class BotFileReader {
                 parseLongValue(lineValues[headerMap.getOrDefault(BoTFileColumnEnum.JOB_END_TIME, -1)])/  1_000_000L,
                 parseLongValue(lineValues[headerMap.getOrDefault(BoTFileColumnEnum.EXECUTION_ATTEMPTS, -1)])
             );
-
             result.add(currentRow);
+            if(!normalizeCreationTime){
+                continue;
+            }
+            if(firstNonZeroCreationTime > 0){
+                currentRow.setJobCreationTime(currentRow.getJobCreationTime() - firstNonZeroCreationTime);
+                currentRow.setJobStartTime(currentRow.getJobStartTime() - firstNonZeroCreationTime);
+                currentRow.setJobEndTime(currentRow.getJobEndTime() - firstNonZeroCreationTime);
+            }
+            else if(currentRow.getJobCreationTime() > 0){
+                firstNonZeroCreationTime = currentRow.getJobCreationTime();
+            }
+
+
         }
 
         br.close();
@@ -84,7 +98,7 @@ public class BotFileReader {
         }
     }
     public static void main(String[] args) throws IOException {
-        List<BoT> boTS = readBoTFile(fileLocation, null);
+        List<BoT> boTS = readBoTFile(fileLocation, null, true);
         System.out.println(boTS);
     }
 

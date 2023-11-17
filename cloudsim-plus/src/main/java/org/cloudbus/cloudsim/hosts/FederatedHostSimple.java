@@ -49,6 +49,8 @@ public class FederatedHostSimple implements Host {
     private static long defaultBwCapacity = 1000;
     private static long defaultStorageCapacity = (long) BytesConversion.gigaToMega(500);
 
+    private String name;
+
     protected HostResourceStats cpuUtilizationStats;
 
     /** @see #getStateHistory() */
@@ -1446,5 +1448,13 @@ public class FederatedHostSimple implements Host {
      */
     public boolean isActivateOnDatacenterStartup() {
         return activateOnDatacenterStartup;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 }

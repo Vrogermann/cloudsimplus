@@ -36,23 +36,29 @@ import org.cloudbus.cloudsim.federation.FederationMemberUser;
 import org.cloudbus.cloudsim.hosts.FederatedHostSimple;
 import org.cloudbus.cloudsim.hosts.Host;
 import org.cloudbus.cloudsim.hosts.HostSimple;
+import org.cloudbus.cloudsim.hosts.HostStateHistoryEntry;
 import org.cloudbus.cloudsim.resources.Pe;
 import org.cloudbus.cloudsim.resources.PeSimple;
 import org.cloudbus.cloudsim.schedulers.cloudlet.CloudletSchedulerTimeShared;
 import org.cloudbus.cloudsim.util.BotFileReader;
 import org.cloudbus.cloudsim.util.Conversion;
+import org.cloudbus.cloudsim.util.ResourceLoader;
 import org.cloudbus.cloudsim.utilizationmodels.UtilizationModelConstant;
 import org.cloudbus.cloudsim.utilizationmodels.UtilizationModelFull;
 import org.cloudbus.cloudsim.vms.FederatedVmSimple;
 import org.cloudbus.cloudsim.vms.Vm;
-import org.cloudsimplus.builders.tables.CloudletsTableBuilder;
+import org.cloudsimplus.builders.tables.*;
 import org.cloudsimplus.traces.ufpel.BoT;
 import org.cloudsimplus.traces.ufpel.ConvertedBoT;
 import org.cloudsimplus.util.Log;
 import org.cloudsimplus.util.*;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.net.URL;
+import java.nio.file.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -62,6 +68,9 @@ import static org.cloudbus.cloudsim.util.MathUtil.positive;
 
 public class FederatedCloudExample {
     private static final URL BOT_CSV_FILE = FederatedCloudExample.class.getClassLoader().getResource("workload/ufpel/sampleBoTs.csv");
+
+    private static final Path RESULTS_LOCATION = Paths.get("X:/tcc/cloudsimplus/cloudsim-plus-examples/src/main/resources/workload/ufpel/results");
+
     private static final List<Records.University> UNIVERSITIES =
         Arrays.asList(new Records.University("Universidade Federal do Rio de Janeiro",
                 new Records.Coordinates(-22.862312050419078, -43.22317329523859),
@@ -69,14 +78,16 @@ public class FederatedCloudExample {
                 1,
                 1,
                 8,
-                1),
-            new Records.University("Universidade Federal de São Paulo (UNIFESP)",
+                1,
+                "UFRJ"),
+            new Records.University("Universidade Federal de São Paulo",
                 new Records.Coordinates(-23.598773, -46.643422),
                 1,
                 1,
                 100,
                 1,
-                4));
+                4,
+                "UNIFESP"));
     private static final List<Records.University> UNIVERSITIES_FULL =
         Arrays.asList(new Records.University("Universidade Federal do Rio de Janeiro",
                 new Records.Coordinates(-22.862312050419078, -43.22317329523859),
@@ -84,70 +95,80 @@ public class FederatedCloudExample {
                 1,
                 10,
                 5,
-                1),
-            new Records.University("Universidade Federal de São Paulo (UNIFESP)",
+                1,
+                "UFRJ"),
+            new Records.University("Universidade Federal de São Paulo",
                 new Records.Coordinates(-23.598773, -46.643422),
                 1,
                 2,
                 20,
                 10,
-                1),
+                1,
+                "UNIFESP"),
             new Records.University("Universidade Federal de Minas Gerais",
                 new Records.Coordinates(-19.870581085957383, -43.967746630914675),
                 2,
                 3,
                 30,
                 15,
-                1),
+                1,
+                "UFMG"),
             new Records.University("Universidade Federal do Rio Grande Do Sul",
                 new Records.Coordinates(-30.033907564026826, -51.21900538654607),
                 3,
                 4,
                 40,
                 10,
-                1),
+                1,
+                "UFRGS"),
             new Records.University("Universidade Federal de Santa Catarina",
                 new Records.Coordinates(-26.23485949891767, -48.88401144670387),
                 4,
                 4,
                 40,
                 5,
-                1),
+                1,
+                "UFSC"),
             new Records.University("Universidade Federal de São Carlos",
                 new Records.Coordinates(-21.983975081254595, -47.88152180795202),
                 5,
                 3,
                 30,
                 10,
-                1),
-            new Records.University("Universidade Federal do Paraná (UFPR)",
+                1,
+                "UFSCar"),
+            new Records.University("Universidade Federal do Paraná",
                 new Records.Coordinates(-25.426871793799748, -49.26175798375143),
                 6,
                 2,
                 20,
                 15,
-                1),
+                1,
+                "UFPR"),
             new Records.University("Universidade Federal do Pernambuco",
                 new Records.Coordinates(-8.01710961795856, -34.950500616736285),
                 7,
                 1,
                 10,
                 10,
-                1),
+                1,
+                "UFPE"),
             new Records.University("Universidade Federal da Bahia",
                 new Records.Coordinates(-13.00365838049915, -38.509963739614044),
                 8,
                 3,
                 30,
                 5,
-                1),
+                1,
+                "UFBA"),
             new Records.University("Universidade Federal de Juiz de Fora",
                 new Records.Coordinates(-21.776859501069005, -43.36904141993076),
                 9,
                 1,
                 20,
                 2,
-                50));
+                50,
+                "UFJF"));
 
     private static final int HOST_PES = 4;
     private static final int HOST_MIPS = 3450; // from 7zip sandy bridge benchmark on https://www.7-cpu.com/
@@ -177,9 +198,10 @@ public class FederatedCloudExample {
         simulation = new CloudSim();
         CloudFederation federation = new CloudFederation("Federal Universities of Brazil", 0L);
 
-        bagOfTasksList = BotFileReader.readBoTFile(BOT_CSV_FILE.getFile(), 500L);
+        bagOfTasksList = BotFileReader.readBoTFile(BOT_CSV_FILE.getFile(), 500L, true);
         UNIVERSITIES.forEach(university -> {
-            FederationMember federationMember = new FederationMember(university.name(), university.id(), federation, university.coordinates());
+            FederationMember federationMember = new FederationMember(university.name(), university.abbreviation(),
+                university.id(), federation, university.coordinates());
 
             federation.addMember(federationMember);
             federationMember.setBroker(new FederatedDatacenterBrokerSimple(simulation, federationMember, federation));
@@ -202,11 +224,74 @@ public class FederatedCloudExample {
 
         simulation.start();
 
-        final List<Cloudlet> finishedCloudlets = federation.getMembers().stream().map(member -> member.getBroker().getCloudletFinishedList()).reduce((accumulator, list) -> {
-            accumulator.addAll(list);
-            return accumulator;
-        }).orElse(Collections.emptyList());
-        new CloudletsTableBuilder(finishedCloudlets).build();
+        final List<FederatedCloudletSimple> finishedFederatedCloudlets =
+            federation.getMembers().stream().flatMap(member -> member.getBroker().getCloudletFinishedList().stream()).
+                map(cloudlet -> (FederatedCloudletSimple) cloudlet).toList();
+
+        final Path baseResultPath = RESULTS_LOCATION.resolve(new Date().getTime() + "/");
+        baseResultPath.toFile().mkdirs();
+        Path botData = baseResultPath.resolve("botData.csv");
+        try {
+
+            // Cria um PrintStream redirecionado para o arquivo
+            PrintStream printStream = new PrintStream(new FileOutputStream(botData.toFile()));
+            CsvTable csvTable = new CsvTable();
+            csvTable.setPrintStream(printStream);
+            new FederatedCloudletsTableBuilder(finishedFederatedCloudlets, csvTable).build();
+
+
+            // Fechar o arquivo
+
+        } catch (IOException e) {
+            System.out.println("Erro ao escrever o arquivo " + botData+ " : " + e);
+        }
+
+
+
+
+        // também imprime a tabela no stdout
+        new FederatedCloudletsTableBuilder(finishedFederatedCloudlets).build();
+
+
+
+        federation.getAllDatacenters().stream().flatMap(datacenter->datacenter.getHostList().stream()).forEach(host->
+        {
+
+            double totalUsage = 0.0;
+            long totalTime = 0;
+
+
+            List<HostStateHistoryEntry> history = host.getStateHistory();
+
+            for (int i = 0; i < history.size(); i++) {
+                HostStateHistoryEntry currentEntry = history.get(i);
+
+                // evitar acessar index negativo
+                double previousTime = (i == 0) ? 0 : history.get(i - 1).getTime();
+
+                double timeDifference = currentEntry.getTime() - previousTime;
+
+                // Calculo da média ponderada
+                double cpuUsage = currentEntry.getAllocatedMips() / host.getTotalMipsCapacity();
+                totalUsage += cpuUsage * timeDifference;
+                totalTime += timeDifference;
+            }
+
+
+            if (totalTime > 0) {
+                System.out.println("Uso médio de cpu do "+ ((FederatedHostSimple) host).getName() + ": " +
+                    totalUsage / totalTime);
+            } else {
+                System.out.println("Uso médio de cpu do "+ ((FederatedHostSimple) host).getName() +" 0.0");
+            }
+
+            new FederatedHostHistoryTableBuilder(host).setTitle(((FederatedHostSimple) host).getName()).build();
+
+        });
+
+        new FederatedDatacenterHistoryTableBuilder(federation.getAllDatacenters()).build();
+
+
     }
 
     private List<Vm> createVmList(List<FederatedCloudletSimple> cloudlets) {
@@ -231,17 +316,17 @@ public class FederatedCloudExample {
     private List<FederatedDatacenter> createDatacenters(FederationMember federationMember, Records.University university) {
         List<FederatedDatacenter> datacenters = new ArrayList<>();
         for (int currentDatacenter = 0; currentDatacenter < university.datacenterAmount(); currentDatacenter++) {
-            final List<Host> hostList = new ArrayList<>();
-
+            final List<FederatedHostSimple> hostList = new ArrayList<>();
+            final String datacenterName = federationMember.getAbbreviation() + "_dc_" + currentDatacenter;
             for (int currentHost = 0; currentHost < university.hostsPerDatacenter(); currentHost++) {
-                Host host = createHost();
+                FederatedHostSimple host = createHost();
+                host.setName(datacenterName+ "_host_" + currentHost);
                 hostList.add(host);
             }
 
 
             FederatedDatacenter federatedDatacenter = new FederatedDatacenter(simulation, hostList,vmAllocationFirstFit(federationMember), federationMember);
-
-            federatedDatacenter.setName(String.format("datacenter_%s:_number_%d", university.name().replace(" ", "_"), currentDatacenter));
+            federatedDatacenter.setName(datacenterName);
             datacenters.add(federatedDatacenter);
         }
         return datacenters;
@@ -257,7 +342,7 @@ public class FederatedCloudExample {
     }
 
 
-    private Host createHost() {
+    private FederatedHostSimple createHost() {
         final List<Pe> peList = new ArrayList<>(HOST_PES);
         //List of Host's CPUs (Processing Elements, PEs)
         for (int i = 0; i < HOST_PES; i++) {
@@ -269,7 +354,10 @@ public class FederatedCloudExample {
         Uses ResourceProvisionerSimple by default for RAM and BW provisioning
         and VmSchedulerSpaceShared for VM scheduling.
         */
-        return new FederatedHostSimple(HOST_RAM, HOST_BW, HOST_STORAGE, peList);
+        FederatedHostSimple federatedHostSimple = new FederatedHostSimple(HOST_RAM, HOST_BW, HOST_STORAGE, peList);
+        federatedHostSimple.enableStateHistory();
+        return  federatedHostSimple;
+
     }
 
 
