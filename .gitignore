@@ -34,3 +34,4 @@ Test.java
 
 deploy.sh
 checkstyle.sh
+/cloudsim-plus-examples/src/main/resources/workload/ufpel/results/
