@@ -54,8 +54,8 @@ public class FederatedDatacenterHistoryTableBuilder extends TableBuilderAbstract
 
 
     public FederatedDatacenterHistoryTableBuilder(final List<FederatedDatacenter> datacenter, final Table table) {
-        this(datacenter);
-        this.setTable(table);
+        super(datacenter, table);
+        this.federatedDatacenterList = datacenter;
     }
 
     @Override

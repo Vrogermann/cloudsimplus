@@ -26,6 +26,8 @@ package org.cloudsimplus.builders.tables;
 import org.cloudbus.cloudsim.hosts.Host;
 import org.cloudbus.cloudsim.hosts.HostStateHistoryEntry;
 
+import java.math.BigDecimal;
+
 /**
  * Builds a table for printing {@link HostStateHistoryEntry} entries from the
  * {@link Host#getStateHistory()}.
@@ -62,24 +64,24 @@ public class FederatedHostHistoryTableBuilder extends TableBuilderAbstract<HostS
      * @param table the {@link Table} used to build the table with the Cloudlets data
      */
     public FederatedHostHistoryTableBuilder(final Host host, final Table table) {
-        this(host);
-        this.setTable(table);
+        super(host.getStateHistory(), table);
+        this.host = host;
     }
 
     @Override
     protected void createTableColumns() {
-        TableColumn col = getTable().addColumn("Time ").setFormat("%5.0f");
-        addColumnDataFunction(col, HostStateHistoryEntry::getTime);
 
-        final String format = "%9.0f";
+        TableColumn col = getTable().addColumn("Time");
+        addColumnDataFunction(col, (host)-> BigDecimal.valueOf(host.getTime()).toPlainString());
 
-        col = getTable().addColumn("Allocated").setFormat(format);
+
+        col = getTable().addColumn("Allocated");
         addColumnDataFunction(col, HostStateHistoryEntry::getAllocatedMips);
 
-        col = getTable().addColumn("Host Total MIPS").setFormat(format);
+        col = getTable().addColumn("Host Total MIPS");
         addColumnDataFunction(col, history -> host.getTotalMipsCapacity());
 
-        col = getTable().addColumn("Used").setFormat("%3.0f%%");
+        col = getTable().addColumn("Used");
         addColumnDataFunction(col, history -> history.getAllocatedMips() / host.getTotalMipsCapacity()*100);
 
     }

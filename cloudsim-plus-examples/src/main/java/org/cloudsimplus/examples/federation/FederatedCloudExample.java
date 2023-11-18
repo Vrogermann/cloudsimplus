@@ -53,10 +53,7 @@ import org.cloudsimplus.traces.ufpel.ConvertedBoT;
 import org.cloudsimplus.util.Log;
 import org.cloudsimplus.util.*;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintStream;
+import java.io.*;
 import java.net.URL;
 import java.nio.file.*;
 import java.util.*;
@@ -237,11 +234,12 @@ public class FederatedCloudExample {
             PrintStream printStream = new PrintStream(new FileOutputStream(botData.toFile()));
             CsvTable csvTable = new CsvTable();
             csvTable.setPrintStream(printStream);
+            csvTable.setColumnSeparator(",");
             new FederatedCloudletsTableBuilder(finishedFederatedCloudlets, csvTable).build();
 
 
             // Fechar o arquivo
-
+            printStream.close();
         } catch (IOException e) {
             System.out.println("Erro ao escrever o arquivo " + botData+ " : " + e);
         }
@@ -249,11 +247,11 @@ public class FederatedCloudExample {
 
 
 
-        // também imprime a tabela no stdout
+        // também mostra a tabela no stdout
         new FederatedCloudletsTableBuilder(finishedFederatedCloudlets).build();
 
 
-
+        // dados de execução de cada host de cada datacenter
         federation.getAllDatacenters().stream().flatMap(datacenter->datacenter.getHostList().stream()).forEach(host->
         {
 
@@ -285,14 +283,64 @@ public class FederatedCloudExample {
                 System.out.println("Uso médio de cpu do "+ ((FederatedHostSimple) host).getName() +" 0.0");
             }
 
+            try {
+                PrintStream printStream = getHostUsagePrintStream(host, baseResultPath);
+                CsvTable csvTable = new CsvTable();
+                csvTable.setPrintStream(printStream);
+                csvTable.setColumnSeparator(",");
+                new FederatedHostHistoryTableBuilder(host, csvTable).
+                    setTitle(((FederatedHostSimple) host).getName()).build();
+
+
+                // Fechar o arquivo
+                printStream.close();
+
+            } catch (IOException e) {
+                System.out.println("Erro ao escrever o arquivo do host  " + ((FederatedHostSimple) host).getName()
+                    +" : "+ e);
+            }
+
+            // mostrar a tabela também no stdout
             new FederatedHostHistoryTableBuilder(host).setTitle(((FederatedHostSimple) host).getName()).build();
 
         });
 
+
+        Path datacenterData = baseResultPath.resolve("datacenterData.csv");
+        try {
+
+            // Cria um PrintStream redirecionado para o arquivo
+            PrintStream printStream = new PrintStream(new FileOutputStream(datacenterData.toFile()));
+            CsvTable csvTable = new CsvTable();
+            csvTable.setColumnSeparator(",");
+            csvTable.setPrintStream(printStream);
+            new FederatedDatacenterHistoryTableBuilder(federation.getAllDatacenters(), csvTable).build();
+
+
+            // Fechar o arquivo
+            printStream.close();
+        } catch (IOException e) {
+            System.out.println("Erro ao escrever o arquivo " + datacenterData+ " : " + e);
+        }
+
+        // mostrar tabela também no stdout
         new FederatedDatacenterHistoryTableBuilder(federation.getAllDatacenters()).build();
 
 
     }
+
+    private static PrintStream getHostUsagePrintStream(Host host, Path baseResultPath) throws FileNotFoundException {
+        Path datacenterFolder = baseResultPath.resolve("datacenters/" + host.getDatacenter().getName() +"/");
+        datacenterFolder.toFile().mkdirs();
+
+        Path hostHistoryDataCsv = datacenterFolder.resolve((((FederatedHostSimple) host).getName()
+            +".csv"));
+
+        // Cria um PrintStream redirecionado para o arquivo
+        return new PrintStream(new FileOutputStream(hostHistoryDataCsv.toFile()));
+    }
+
+
 
     private List<Vm> createVmList(List<FederatedCloudletSimple> cloudlets) {
         return cloudlets.stream().map(cloudlet -> {
