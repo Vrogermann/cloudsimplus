@@ -3,10 +3,7 @@ package org.cloudbus.cloudsim.util;
 import org.cloudsimplus.traces.ufpel.BoT;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class BotFileReader {
 
@@ -14,7 +11,7 @@ public class BotFileReader {
     private static final String delimiter = ",";
     private static final String fileLocation = "X:\\tcc\\cloudsimplus\\cloudsim-plus-examples\\src\\main\\resources\\workload\\ufpel\\sampleBoTs.csv";
 
-    public static List<BoT> readBoTFile(String filepath, Long lineLimit, boolean normalizeCreationTime) throws IOException {
+    public static List<BoT> readBoTFile(String filepath, Long lineLimit) throws IOException {
 
         List<BoT> result = new ArrayList<>();
 
@@ -62,22 +59,14 @@ public class BotFileReader {
                 parseLongValue(lineValues[headerMap.getOrDefault(BoTFileColumnEnum.EXECUTION_ATTEMPTS, -1)])
             );
             result.add(currentRow);
-            if(!normalizeCreationTime){
-                continue;
-            }
-            if(firstNonZeroCreationTime > 0){
-                currentRow.setJobCreationTime(currentRow.getJobCreationTime() - firstNonZeroCreationTime);
-                currentRow.setJobStartTime(currentRow.getJobStartTime() - firstNonZeroCreationTime);
-                currentRow.setJobEndTime(currentRow.getJobEndTime() - firstNonZeroCreationTime);
-            }
-            else if(currentRow.getJobCreationTime() > 0){
-                firstNonZeroCreationTime = currentRow.getJobCreationTime();
-            }
+
 
 
         }
 
+
         br.close();
+        result.sort(Comparator.comparingLong(BoT::getJobCreationTime));
         return result;
     }
 
@@ -98,7 +87,7 @@ public class BotFileReader {
         }
     }
     public static void main(String[] args) throws IOException {
-        List<BoT> boTS = readBoTFile(fileLocation, null, true);
+        List<BoT> boTS = readBoTFile(fileLocation, null);
         System.out.println(boTS);
     }
 

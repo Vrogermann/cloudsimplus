@@ -29,6 +29,7 @@ import org.cloudbus.cloudsim.brokers.FederatedDatacenterBrokerSimple;
 import org.cloudbus.cloudsim.cloudlets.Cloudlet;
 import org.cloudbus.cloudsim.cloudlets.FederatedCloudletSimple;
 import org.cloudbus.cloudsim.core.CloudSim;
+import org.cloudbus.cloudsim.datacenters.Datacenter;
 import org.cloudbus.cloudsim.datacenters.FederatedDatacenter;
 import org.cloudbus.cloudsim.federation.CloudFederation;
 import org.cloudbus.cloudsim.federation.FederationMember;
@@ -57,6 +58,7 @@ import java.io.*;
 import java.net.URL;
 import java.nio.file.*;
 import java.util.*;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 import static org.cloudbus.cloudsim.util.BytesConversion.megaBytesToBytes;
@@ -64,7 +66,7 @@ import static org.cloudbus.cloudsim.util.MathUtil.positive;
 
 
 public class FederatedCloudExample {
-    private static final URL BOT_CSV_FILE = FederatedCloudExample.class.getClassLoader().getResource("workload/ufpel/sampleBoTs.csv");
+    private static final URL BOT_CSV_FILE = FederatedCloudExample.class.getClassLoader().getResource("workload/ufpel/outputconverted.csv");
 
     private static final Path RESULTS_LOCATION = Paths.get("X:/tcc/cloudsimplus/cloudsim-plus-examples/src/main/resources/workload/ufpel/results");
 
@@ -97,7 +99,7 @@ public class FederatedCloudExample {
             new Records.University("Universidade Federal de São Paulo",
                 new Records.Coordinates(-23.598773, -46.643422),
                 1,
-                2,
+                1,
                 20,
                 10,
                 1,
@@ -105,7 +107,7 @@ public class FederatedCloudExample {
             new Records.University("Universidade Federal de Minas Gerais",
                 new Records.Coordinates(-19.870581085957383, -43.967746630914675),
                 2,
-                3,
+                1,
                 30,
                 15,
                 1,
@@ -113,7 +115,7 @@ public class FederatedCloudExample {
             new Records.University("Universidade Federal do Rio Grande Do Sul",
                 new Records.Coordinates(-30.033907564026826, -51.21900538654607),
                 3,
-                4,
+                1,
                 40,
                 10,
                 1,
@@ -121,7 +123,7 @@ public class FederatedCloudExample {
             new Records.University("Universidade Federal de Santa Catarina",
                 new Records.Coordinates(-26.23485949891767, -48.88401144670387),
                 4,
-                4,
+                1,
                 40,
                 5,
                 1,
@@ -129,7 +131,7 @@ public class FederatedCloudExample {
             new Records.University("Universidade Federal de São Carlos",
                 new Records.Coordinates(-21.983975081254595, -47.88152180795202),
                 5,
-                3,
+                1,
                 30,
                 10,
                 1,
@@ -137,7 +139,7 @@ public class FederatedCloudExample {
             new Records.University("Universidade Federal do Paraná",
                 new Records.Coordinates(-25.426871793799748, -49.26175798375143),
                 6,
-                2,
+                1,
                 20,
                 15,
                 1,
@@ -153,7 +155,7 @@ public class FederatedCloudExample {
             new Records.University("Universidade Federal da Bahia",
                 new Records.Coordinates(-13.00365838049915, -38.509963739614044),
                 8,
-                3,
+                1,
                 30,
                 5,
                 1,
@@ -195,10 +197,11 @@ public class FederatedCloudExample {
         simulation = new CloudSim();
         CloudFederation federation = new CloudFederation("Federal Universities of Brazil", 0L);
 
-        bagOfTasksList = BotFileReader.readBoTFile(BOT_CSV_FILE.getFile(), 500L, true);
-        UNIVERSITIES.forEach(university -> {
+        bagOfTasksList = BotFileReader.readBoTFile(BOT_CSV_FILE.getFile(), 562L);
+        UNIVERSITIES_FULL.forEach(university -> {
             FederationMember federationMember = new FederationMember(university.name(), university.abbreviation(),
                 university.id(), federation, university.coordinates());
+            federationMember.setBotsPerUser(Long.valueOf(university.BoTsPerUser()));
 
             federation.addMember(federationMember);
             federationMember.setBroker(new FederatedDatacenterBrokerSimple(simulation, federationMember, federation));
@@ -380,13 +383,23 @@ public class FederatedCloudExample {
         return datacenters;
     }
 
+    public boolean datacenterEligibleForVMFunction(Datacenter datacenter, Vm vm){
+        return datacenter.getHostList().stream().anyMatch(host-> hostEligibleForVMFunction(host, vm));
+    }
+
+    private boolean hostEligibleForVMFunction(Host host, Vm vm){
+        return host.getFreePesNumber() >= vm.getExpectedFreePesNumber()
+            && vm.getCurrentRequestedRam() <= host.getRam().getAvailableResource()
+            && host.getAvailableStorage() >= vm.getStorage().getCapacity() ;
+    };
+
     private FederatedVmAllocationPolicy vmAllocationFirstFit(FederationMember federationMember) {
         return new FederatedVmAllocationPolicy(federationMember,
             federationMember.getFederation(),
-            (datacenter, vm) -> datacenter.getHostList().stream().anyMatch(host -> host.getFreePesNumber() >= vm.getExpectedFreePesNumber())
-            , null, (host, vm) -> host.getFreePesNumber() >= vm.getExpectedFreePesNumber()
-            && vm.getCurrentRequestedRam() <= host.getRam().getAvailableResource()
-            && host.getAvailableStorage() >= vm.getStorage().getCapacity(), null);
+            this::datacenterEligibleForVMFunction
+            , null,
+            this::hostEligibleForVMFunction,
+            null);
     }
 
 

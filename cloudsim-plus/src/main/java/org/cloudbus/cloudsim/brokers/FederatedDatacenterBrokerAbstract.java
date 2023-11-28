@@ -663,13 +663,6 @@ public abstract class FederatedDatacenterBrokerAbstract extends CloudSimEntity i
         //Decreases to indicate an ack for the request was received (either if the VM was created or not)
         vmCreationRequests--;
 
-        if(allNonDelayedVmsCreated()) {
-            newVmsArrived = false;
-            requestDatacentersToCreateWaitingCloudlets();
-        } else if (vmCreationRequests == 0) {
-            requestCreationOfWaitingVmsToFallbackDatacenter();
-        }
-
         return vm.isCreated();
     }
 
@@ -780,27 +773,27 @@ public abstract class FederatedDatacenterBrokerAbstract extends CloudSimEntity i
             return;
         }
 
-        if(vm.getSubmissionDelay() > 0){
-            FederatedVmSimple federatedVmSimple = (FederatedVmSimple) vm;
-            // selects a VM for the given Cloudlet
-            FederatedCloudletSimple cloudlet = federatedVmSimple.getBoT().getTasks().
-                get(Math.toIntExact(federatedVmSimple.getBotTaskNumber()));
-            Vm selectedVM = vmMapper.apply(cloudlet);
-            if (!selectedVM.isCreated()) {
-                logPostponingCloudletExecution(cloudlet);
-            }
-
-            ((FederatedVmSimple) selectedVM).removeExpectedFreePesNumber(cloudlet.getNumberOfPes());
-
-            logCloudletCreationRequest(cloudlet);
-            cloudlet.setVm(selectedVM);
-            send(getDatacenter(selectedVM),
-                0, CloudSimTags.CLOUDLET_SUBMIT, cloudlet);
-            cloudlet.setLastTriedDatacenter(getDatacenter(selectedVM));
-            cloudletsCreatedList.add(cloudlet);
-            cloudletWaitingList.remove(cloudlet);
-
+        FederatedVmSimple federatedVmSimple = (FederatedVmSimple) vm;
+        // selects a VM for the given Cloudlet
+        FederatedCloudletSimple cloudlet = federatedVmSimple.getBoT().getTasks().
+            get(Math.toIntExact(federatedVmSimple.getBotTaskNumber()));
+        lastSelectedVm = vmMapper.apply(cloudlet);
+        if (!lastSelectedVm.isCreated()) {
+            logPostponingCloudletExecution(cloudlet);
         }
+
+        ((FederatedVmSimple) lastSelectedVm).removeExpectedFreePesNumber(cloudlet.getNumberOfPes());
+
+
+        logCloudletCreationRequest(cloudlet);
+        cloudlet.setVm(lastSelectedVm);
+        send(getDatacenter(lastSelectedVm),
+            0, CloudSimTags.CLOUDLET_SUBMIT, cloudlet);
+        cloudlet.setLastTriedDatacenter(getDatacenter(lastSelectedVm));
+        cloudletsCreatedList.add(cloudlet);
+        cloudletWaitingList.remove(cloudlet);
+
+
 
         vmWaitingList.remove(vm);
         vmExecList.add(vm);
@@ -1002,7 +995,8 @@ public abstract class FederatedDatacenterBrokerAbstract extends CloudSimEntity i
         int createdCloudlets = 0;
         for (final Iterator<Cloudlet> it = cloudletWaitingList.iterator(); it.hasNext(); ) {
             final FederatedCloudletSimple cloudlet = (FederatedCloudletSimple)it.next();
-            if (!cloudlet.getLastTriedDatacenter().equals(Datacenter.NULL)) {
+            if (!cloudlet.getLastTriedDatacenter().equals(Datacenter.NULL) ||
+                    cloudlet.getSubmissionDelay() > getSimulation().clock()) {
                 continue;
             }
 
@@ -1044,7 +1038,14 @@ public abstract class FederatedDatacenterBrokerAbstract extends CloudSimEntity i
         if(vm.getSubmissionDelay() > 0) {
             final String secs = vm.getSubmissionDelay() > 1 ? "seconds" : "second";
             LOGGER.info(msg, String.format("bind Vm %d was requested to be created with %.2f %s delay", vm.getId(), vm.getSubmissionDelay(), secs));
-        } else LOGGER.warn(msg, vmMsg);
+        }
+        else if(cloudlet.getSubmissionDelay() > getSimulation().clock()){
+            final String secs = vm.getSubmissionDelay() > 1 ? "seconds" : "second";
+            LOGGER.info(msg, String.format("cloudlet %d was requested to be created with %.2f %s delay", cloudlet.getId(), cloudlet.getSubmissionDelay(), secs));
+        }
+        else{
+            LOGGER.warn(msg, vmMsg);
+        }
     }
 
     private void logCloudletCreationRequest(final Cloudlet cloudlet) {

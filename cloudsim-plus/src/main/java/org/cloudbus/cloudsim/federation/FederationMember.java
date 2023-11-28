@@ -18,18 +18,20 @@ public class FederationMember {
     private CloudFederation federation;
     private FederatedDatacenterBrokerSimple broker;
     private Records.Coordinates coordinates;
-    private List<FederationMemberUser> userList;
+    private final List<FederationMemberUser> userList;
+
+    private Long botsPerUser;
 
     /**
      * Creates a member of a Cloud Federation
      *
-     * @param abbreviation
+     * @param abbreviation abbreviation the member name
      * @param name         name of the member
      * @param id           of the member
      * @param datacenters  set of all the datacenters of the member
      * @param federation   federation the member is part of
      *                     if federation is non-null, also calls the method {@link CloudFederation#addMember(FederationMember)}}
-     * @param coordinates
+     * @param coordinates  latitude and longitude of the university
      */
     public FederationMember(String abbreviation, String name, Integer id, Set<FederatedDatacenter> datacenters, CloudFederation federation, Records.Coordinates coordinates) {
         this.abbreviation = abbreviation;
@@ -148,5 +150,13 @@ public class FederationMember {
 
     public String getAbbreviation() {
         return abbreviation;
+    }
+
+    public Long getBotsPerUser() {
+        return botsPerUser;
+    }
+
+    public void setBotsPerUser(Long botsPerUser) {
+        this.botsPerUser = botsPerUser;
     }
 }

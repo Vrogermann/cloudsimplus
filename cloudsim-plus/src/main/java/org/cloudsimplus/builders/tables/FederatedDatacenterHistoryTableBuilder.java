@@ -27,6 +27,7 @@ import org.cloudbus.cloudsim.core.CloudSimEntity;
 import org.cloudbus.cloudsim.datacenters.FederatedDatacenter;
 import org.cloudbus.cloudsim.hosts.Host;
 import org.cloudbus.cloudsim.hosts.HostStateHistoryEntry;
+import org.cloudsimplus.traces.ufpel.ConvertedBoT;
 
 import java.util.List;
 
@@ -73,11 +74,17 @@ public class FederatedDatacenterHistoryTableBuilder extends TableBuilderAbstract
             (datacenter -> datacenter.getHostList().stream().
                 mapToLong(host->host.getPeList().size()).sum() / datacenter.getHostList().size()));
 
+        addColumnDataFunction(getTable().addColumn("Amount of university users"),
+            (datacenter -> datacenter.getOwner().getUserList().size()));
+
+        addColumnDataFunction(getTable().addColumn("BoTs per university user"),
+            (datacenter -> datacenter.getOwner().getBotsPerUser()));
+
         addColumnDataFunction(
             getTable().addColumn("Average CPU Usage"),
             (datacenter -> {
                 double totalUsage = 0.0;
-                long totalTime = 0;
+                double totalTime = 0;
 
                 for (Host host : datacenter.getHostList()) {
                     List<HostStateHistoryEntry> history = host.getStateHistory();
