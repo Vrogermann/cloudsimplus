@@ -24,7 +24,7 @@
 package org.cloudsimplus.examples.federation;
 
 import ch.qos.logback.classic.Level;
-import org.cloudbus.cloudsim.allocationpolicies.FederatedVmAllocationPolicy;
+import org.cloudbus.cloudsim.allocationpolicies.*;
 import org.cloudbus.cloudsim.brokers.FederatedDatacenterBrokerSimple;
 import org.cloudbus.cloudsim.cloudlets.FederatedCloudletSimple;
 import org.cloudbus.cloudsim.core.CloudSim;
@@ -38,7 +38,6 @@ import org.cloudbus.cloudsim.hosts.Host;
 import org.cloudbus.cloudsim.hosts.HostStateHistoryEntry;
 import org.cloudbus.cloudsim.resources.Pe;
 import org.cloudbus.cloudsim.resources.PeSimple;
-import org.cloudbus.cloudsim.schedulers.cloudlet.CloudletSchedulerTimeShared;
 import org.cloudbus.cloudsim.util.BotFileReader;
 import org.cloudbus.cloudsim.util.Conversion;
 import org.cloudbus.cloudsim.utilizationmodels.UtilizationModelConstant;
@@ -193,7 +192,7 @@ public class FederatedCloudSimulation {
         simulation = new CloudSim();
         CloudFederation federation = new CloudFederation("Federal Universities of Brazil", 0L);
 
-        bagOfTasksList = BotFileReader.readBoTFile(BOT_CSV_FILE.getFile(), 562L);
+        bagOfTasksList = BotFileReader.readBoTFile(BOT_CSV_FILE.getFile(), null);
         UNIVERSITIES_FULL.forEach(university -> {
             FederationMember federationMember = new FederationMember(university.name(), university.abbreviation(),
                 university.id(), federation, university.coordinates());
@@ -371,31 +370,19 @@ public class FederatedCloudSimulation {
             }
 
 
-            FederatedDatacenter federatedDatacenter = new FederatedDatacenter(simulation, hostList,vmAllocationFirstFit(federationMember), federationMember);
+            FederatedDatacenter federatedDatacenter = new FederatedDatacenter(simulation, hostList,
+//                new FederatedVmAllocationPolicyFindFirst(federationMember, federationMember.getFederation()),
+//                new FederatedVmAllocationPolicyWorstFit(federationMember, federationMember.getFederation()),
+                //new FederatedVmAllocationPolicyBestFit(federationMember, federationMember.getFederation()),
+//                new FederatedVmAllocationPolicySingleLayerRoundRobin(federationMember, federationMember.getFederation()),
+                new FederatedVmAllocationPolicyDualLayerRoundRobin(federationMember, federationMember.getFederation()),
+                federationMember);
             federatedDatacenter.setName(datacenterName);
             datacenters.add(federatedDatacenter);
         }
         return datacenters;
     }
 
-    public boolean datacenterEligibleForVMFunction(Datacenter datacenter, Vm vm){
-        return datacenter.getHostList().stream().anyMatch(host-> hostEligibleForVMFunction(host, vm));
-    }
-
-    private boolean hostEligibleForVMFunction(Host host, Vm vm){
-        return host.getFreePesNumber() >= vm.getExpectedFreePesNumber()
-            && vm.getCurrentRequestedRam() <= host.getRam().getAvailableResource()
-            && host.getAvailableStorage() >= vm.getStorage().getCapacity() ;
-    };
-
-    private FederatedVmAllocationPolicy vmAllocationFirstFit(FederationMember federationMember) {
-        return new FederatedVmAllocationPolicy(federationMember,
-            federationMember.getFederation(),
-            this::datacenterEligibleForVMFunction
-            , null,
-            this::hostEligibleForVMFunction,
-            null);
-    }
 
 
     private FederatedHostSimple createHost() {

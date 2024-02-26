@@ -6,7 +6,7 @@
  */
 package org.cloudbus.cloudsim.datacenters;
 
-import org.cloudbus.cloudsim.allocationpolicies.FederatedVmAllocationPolicy;
+import org.cloudbus.cloudsim.allocationpolicies.FederatedVmAllocationPolicyFindFirst;
 import org.cloudbus.cloudsim.allocationpolicies.VmAllocationPolicy;
 import org.cloudbus.cloudsim.allocationpolicies.VmAllocationPolicySimple;
 import org.cloudbus.cloudsim.allocationpolicies.migration.VmAllocationPolicyMigration;
@@ -26,7 +26,6 @@ import org.cloudbus.cloudsim.network.IcmpPacket;
 import org.cloudbus.cloudsim.power.models.PowerModelDatacenter;
 import org.cloudbus.cloudsim.power.models.PowerModelDatacenterSimple;
 import org.cloudbus.cloudsim.resources.DatacenterStorage;
-import org.cloudbus.cloudsim.resources.SanStorage;
 import org.cloudbus.cloudsim.schedulers.cloudlet.CloudletScheduler;
 import org.cloudbus.cloudsim.util.BytesConversion;
 import org.cloudbus.cloudsim.util.MathUtil;
@@ -112,11 +111,11 @@ public class FederatedDatacenter extends CloudSimEntity implements Datacenter {
      *
      * @param simulation The CloudSim instance that represents the simulation the Entity is related to
      * @param hostList list of {@link Host}s that will compound the Datacenter
-     * @see #FederatedDatacenter(Simulation, List, FederatedVmAllocationPolicy, DatacenterStorage, FederationMember)
+     * @see #FederatedDatacenter(Simulation, List, VmAllocationPolicy, DatacenterStorage, FederationMember)
      */
     public FederatedDatacenter(final Simulation simulation,
                                final List<? extends Host> hostList,
-                               FederatedVmAllocationPolicy vmAllocationPolicy,
+                               VmAllocationPolicy vmAllocationPolicy,
                                FederationMember owner) {
         this(simulation, hostList, vmAllocationPolicy, new DatacenterStorage(), owner);
     }
@@ -128,14 +127,14 @@ public class FederatedDatacenter extends CloudSimEntity implements Datacenter {
      *
      * @param simulation The CloudSim instance that represents the simulation the Entity is related to
      * @param vmAllocationPolicy the policy to be used to allocate VMs into hosts
-     * @see #FederatedDatacenter(Simulation, List, FederatedVmAllocationPolicy, FederationMember)
-     * @see #FederatedDatacenter(Simulation, List, FederatedVmAllocationPolicy, DatacenterStorage, FederationMember)
+     * @see #FederatedDatacenter(Simulation, List, VmAllocationPolicy, FederationMember)
+     * @see #FederatedDatacenter(Simulation, List, VmAllocationPolicy, DatacenterStorage, FederationMember)
      * @see #addHost(Host)
      * @see #addHostList(List)
      */
     public FederatedDatacenter(
-        final Simulation simulation,
-        final FederatedVmAllocationPolicy vmAllocationPolicy, final FederationMember owner)
+            final Simulation simulation,
+            final VmAllocationPolicy vmAllocationPolicy, final FederationMember owner)
     {
         this(simulation, new ArrayList<>(), vmAllocationPolicy, new DatacenterStorage(), owner);
     }
@@ -152,7 +151,7 @@ public class FederatedDatacenter extends CloudSimEntity implements Datacenter {
     public FederatedDatacenter(
         final Simulation simulation,
         final List<? extends Host> hostList,
-        final FederatedVmAllocationPolicy vmAllocationPolicy,
+        final VmAllocationPolicy vmAllocationPolicy,
         final DatacenterStorage storage,
         final FederationMember owner)
     {
