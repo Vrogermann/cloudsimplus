@@ -26,7 +26,6 @@ package org.cloudsimplus.examples.federation;
 import ch.qos.logback.classic.Level;
 import org.cloudbus.cloudsim.allocationpolicies.FederatedVmAllocationPolicy;
 import org.cloudbus.cloudsim.brokers.FederatedDatacenterBrokerSimple;
-import org.cloudbus.cloudsim.cloudlets.Cloudlet;
 import org.cloudbus.cloudsim.cloudlets.FederatedCloudletSimple;
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.datacenters.Datacenter;
@@ -36,14 +35,12 @@ import org.cloudbus.cloudsim.federation.FederationMember;
 import org.cloudbus.cloudsim.federation.FederationMemberUser;
 import org.cloudbus.cloudsim.hosts.FederatedHostSimple;
 import org.cloudbus.cloudsim.hosts.Host;
-import org.cloudbus.cloudsim.hosts.HostSimple;
 import org.cloudbus.cloudsim.hosts.HostStateHistoryEntry;
 import org.cloudbus.cloudsim.resources.Pe;
 import org.cloudbus.cloudsim.resources.PeSimple;
 import org.cloudbus.cloudsim.schedulers.cloudlet.CloudletSchedulerTimeShared;
 import org.cloudbus.cloudsim.util.BotFileReader;
 import org.cloudbus.cloudsim.util.Conversion;
-import org.cloudbus.cloudsim.util.ResourceLoader;
 import org.cloudbus.cloudsim.utilizationmodels.UtilizationModelConstant;
 import org.cloudbus.cloudsim.utilizationmodels.UtilizationModelFull;
 import org.cloudbus.cloudsim.vms.FederatedVmSimple;
@@ -58,15 +55,14 @@ import java.io.*;
 import java.net.URL;
 import java.nio.file.*;
 import java.util.*;
-import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 import static org.cloudbus.cloudsim.util.BytesConversion.megaBytesToBytes;
 import static org.cloudbus.cloudsim.util.MathUtil.positive;
 
 
-public class FederatedCloudExample {
-    private static final URL BOT_CSV_FILE = FederatedCloudExample.class.getClassLoader().getResource("workload/ufpel/outputconverted.csv");
+public class FederatedCloudSimulation {
+    private static final URL BOT_CSV_FILE = FederatedCloudSimulation.class.getClassLoader().getResource("workload/ufpel/outputconverted.csv");
 
     private static final Path RESULTS_LOCATION = Paths.get("X:/tcc/cloudsimplus/cloudsim-plus-examples/src/main/resources/workload/ufpel/results");
 
@@ -186,10 +182,10 @@ public class FederatedCloudExample {
     private int currentBotIndex = 0; // Initialize the bot index counter
 
     public static void main(String[] args) throws IOException {
-        new FederatedCloudExample();
+        new FederatedCloudSimulation();
     }
 
-    private FederatedCloudExample() throws IOException {
+    private FederatedCloudSimulation() throws IOException {
         /*Enables just some level of log messages.
           Make sure to import org.cloudsimplus.util.Log;*/
         Log.setLevel(Level.ALL);
@@ -353,8 +349,7 @@ public class FederatedCloudExample {
                 cloudlet.getBoT() );
             vm.setRam(HOST_RAM / HOST_PES).
                 setBw(HOST_BW / HOST_PES).
-                setSize(HOST_STORAGE / 4).
-                setCloudletScheduler(new CloudletSchedulerTimeShared())
+                setSize(HOST_STORAGE / HOST_PES)
                 .setSubmissionDelay(cloudlet.getSubmissionDelay());
             vm.setBotJobId(cloudlet.getBotJobId());
             vm.setBotTaskNumber(cloudlet.getBotTaskNumber());
@@ -405,7 +400,7 @@ public class FederatedCloudExample {
 
     private FederatedHostSimple createHost() {
         final List<Pe> peList = new ArrayList<>(HOST_PES);
-        //List of Host's CPUs (Processing Elements, PEs)
+        //List of Host's CPUs (bing Elements, PEs)
         for (int i = 0; i < HOST_PES; i++) {
             //Uses a PeProvisionerSimple by default to provision PEs for VMs
             peList.add(new PeSimple(HOST_MIPS));
