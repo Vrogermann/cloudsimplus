@@ -406,33 +406,33 @@ public class FederatedCloudSimulation {
 
     private List<FederatedCloudletSimple> createCloudlets(Records.University university,
                                                           FederationMember federationMember) {
-        int requiredCloudlets = currentBotIndex + (university.BoTsPerUser() * university.numberOfUsers());
-        if (requiredCloudlets >= bagOfTasksList.size()) {
-            throw new RuntimeException(String.format("Não há BoTs suficientes para executar a simulação, " +
-                    "foram requisitados {0} mas a lista de BoTs só contem {1} itens.",
-                requiredCloudlets,
-                bagOfTasksList.size()));
-        }
 
-
+        int currentBotIndex = university.id();
         final List<FederatedCloudletSimple> list = new ArrayList<>(university.BoTsPerUser());
 
-        for (
-            int currentUser = 0; currentUser < university.numberOfUsers(); currentUser++) {
-            FederationMemberUser user = new FederationMemberUser(federationMember, (long) currentUser);
+            for (int currentUser = 0; currentUser < university.numberOfUsers(); currentUser++) {
+                FederationMemberUser user = new FederationMemberUser(federationMember, (long) currentUser);
 
 
-            for (int i = 0; i < university.BoTsPerUser(); i++) {
-                BoT currentBoT = bagOfTasksList.get(currentBotIndex % bagOfTasksList.size());
-                List<FederatedCloudletSimple> cloudlets = createAllCloudletsFromBoT(currentBoT, user);
-                federationMember.addUser(user);
-                list.addAll(cloudlets);
+                for (int i = 0; i < university.BoTsPerUser(); i++) {
+                    int index = UNIVERSITIES_FULL.size() * currentBotIndex + university.id();
 
-                currentBotIndex++;
+                    if (index >= bagOfTasksList.size()) {
+                        throw new RuntimeException(String.format("Não há BoTs suficientes para executar a simulação, " +
+                                "foram requisitados {0} mas a lista de BoTs só contem {1} itens.",
+                            index,
+                            bagOfTasksList.size()));
+                    }
+                    BoT currentBoT = bagOfTasksList.get(index);
+                    List<FederatedCloudletSimple> cloudlets = createAllCloudletsFromBoT(currentBoT, user);
+                    federationMember.addUser(user);
+                    list.addAll(cloudlets);
+
+                    currentBotIndex++;
+                }
             }
-        }
 
-        return list;
+            return list;
     }
 
     private List<FederatedCloudletSimple> createAllCloudletsFromBoT(BoT currentBoT, FederationMemberUser user) {
