@@ -128,6 +128,7 @@ public class FederatedVmAllocationPolicyWorstFit extends VmAllocationPolicyAbstr
 
     @Override
     protected Optional<Host> defaultFindHostForVm(final Vm vm) {
+        double vmAllocationLatency = 0;
         if(!(vm instanceof FederatedVmSimple)){
             LOGGER.error("VM is not a FederatedVmSimple instance");
             throw new RuntimeException("FederatedDatacenter received non FederatedVmSimple instance");
@@ -137,16 +138,34 @@ public class FederatedVmAllocationPolicyWorstFit extends VmAllocationPolicyAbstr
         // finds the host with the least amount of free PEs owned by the federation member
         Optional<Host> hostFromUserThatCanSupportTheVm = vmOwner.getDatacenters().stream().
             flatMap(dc -> dc.getHostList().stream()).filter(host -> host.isSuitableForVm(vm)).
-            min(Comparator.comparingLong(Host::getFreePesNumber));
+            max(Comparator.comparingLong(Host::getFreePesNumber));
 
         if (hostFromUserThatCanSupportTheVm.isPresent()){
             return hostFromUserThatCanSupportTheVm;
         }
 
         // if no datacenters can host the user VM, look on datacenters from other members of the federation
-        return vmOwner.getDatacentersFromOtherMembers().stream().flatMap(dc -> dc.getHostList().stream()).
-            filter(host -> host.isSuitableForVm(vm)).
-            min(Comparator.comparingLong(Host::getFreePesNumber));
+        boolean seen = false;
+        Host best = null;
+        Comparator<Host> comparator = Comparator.comparingLong(Host::getFreePesNumber);
+        for (FederatedDatacenter dc : vmOwner.getDatacentersFromOtherMembers()) {
+            for (Host host : dc.getHostList()) {
+                if (host.isSuitableForVm(vm)) {
+                    if (!seen || comparator.compare(host, best) > 0) {
+                        seen = true;
+                        best = host;
+                    }
+                    FederationMember hostOwner  = ((FederatedDatacenter) host.getDatacenter()).getOwner();
+                    Double latencyBetweenDCs = owner.getFederation().
+                        getMemberToMemberLatencyMap(hostOwner).get(this.owner);
+                    if( latencyBetweenDCs > vmAllocationLatency){
+                        vmAllocationLatency = latencyBetweenDCs;
+                    }
+                }
+            }
+        }
+        ((FederatedDatacenter)getDatacenter()).updateTimeSpentFindingHostForVm(vm, vmAllocationLatency);
+        return seen ? Optional.of(best) : Optional.empty();
 
     }
 

@@ -117,14 +117,32 @@ public class FederatedCloudletsTableBuilder extends TableBuilderAbstract<Federat
             Cloudlet::getNumberOfPes);
 
 
-        TableColumn col = getTable().addColumn("StartTime");
+        TableColumn col = getTable().addColumn("Cloudlet StartTime");
         addColumnDataFunction(col, Cloudlet::getExecStartTime);
 
-        col = getTable().addColumn("FinishTime");
-        addColumnDataFunction(col, cl -> roundTime(cl, cl.getFinishTime()));
+        col = getTable().addColumn("Cloudlet Finish Time");
+        addColumnDataFunction(col, cl -> cl.getFinishTime());
 
-        col = getTable().addColumn("ExecTime");
-        addColumnDataFunction(col, cl -> roundTime(cl, cl.getActualCpuTime()));
+        col = getTable().addColumn("Cloudlet Cpu Time");
+        addColumnDataFunction(col, cl -> cl.getActualCpuTime());
+
+        col = getTable().addColumn("VM Submission Time");
+        addColumnDataFunction(col, cl -> cl.getBoT().getOriginalBoT().getJobStartTime());
+
+        col = getTable().addColumn("Vm Creation time");
+        addColumnDataFunction(col, cl -> cl.getVm().getCreationTime());
+
+        col = getTable().addColumn("Vm Destruction time");
+        addColumnDataFunction(col, cl -> cl.getVm().getStopTime());
+
+        col = getTable().addColumn("Vm lifetime");
+        addColumnDataFunction(col, cl -> cl.getVm().getStopTime() - cl.getVm().getCreationTime() );
+
+        col = getTable().addColumn("Slowdown");
+        addColumnDataFunction(col, cl ->   (cl.getVm().getStopTime() - cl.getVm().getCreationTime())/ cl.getActualCpuTime());
+
+
+
     }
 
     /**

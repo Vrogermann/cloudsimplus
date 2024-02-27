@@ -69,7 +69,7 @@ public class FederatedVmSimple extends VmSimple implements Vm{
 
     @Override
     public String toString(){
-        return "VM "+this.vmOwner.getFederationMember().getName() + "/" + "from user " +this.vmOwner.getId();
+        return "VM "+this.vmOwner.getFederationMember().getAbbreviation() + "/" + "from user " +this.vmOwner.getId() + " /bot id "+ boT.getOriginalBoT().getJobId() + " /task index " + botTaskNumber;
     }
 
 }

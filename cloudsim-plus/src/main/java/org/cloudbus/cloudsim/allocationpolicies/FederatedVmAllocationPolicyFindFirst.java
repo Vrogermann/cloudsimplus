@@ -93,9 +93,23 @@ public class FederatedVmAllocationPolicyFindFirst extends VmAllocationPolicyAbst
             return hostFromUserThatCanSupportTheVm;
         }
         // if no datacenters can host the user VM, look on datacenters from other members of the federation
-
-        return vmOwner.getDatacentersFromOtherMembers().stream().flatMap(dc->dc.getHostList().stream()).
-            filter(host->host.isSuitableForVm(vm)).findFirst();
+        double vmAllocationLatency = 0;
+        for (FederatedDatacenter dc : vmOwner.getDatacentersFromOtherMembers()) {
+            for (Host host : dc.getHostList()) {
+                FederationMember hostOwner  = ((FederatedDatacenter) host.getDatacenter()).getOwner();
+                Double latencyBetweenDCs = owner.getFederation().
+                    getMemberToMemberLatencyMap(hostOwner).get(this.owner);
+                if(latencyBetweenDCs > vmAllocationLatency){
+                    vmAllocationLatency = latencyBetweenDCs;
+                }
+                if (host.isSuitableForVm(vm)) {
+                    ((FederatedDatacenter)getDatacenter()).updateTimeSpentFindingHostForVm(vm, vmAllocationLatency);
+                    return Optional.of(host);
+                }
+            }
+        }
+        ((FederatedDatacenter)getDatacenter()).updateTimeSpentFindingHostForVm(vm, vmAllocationLatency);
+        return Optional.empty();
     }
 
 

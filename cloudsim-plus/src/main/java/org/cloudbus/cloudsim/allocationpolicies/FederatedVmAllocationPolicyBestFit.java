@@ -27,6 +27,7 @@ import org.cloudbus.cloudsim.datacenters.Datacenter;
 import org.cloudbus.cloudsim.datacenters.FederatedDatacenter;
 import org.cloudbus.cloudsim.federation.CloudFederation;
 import org.cloudbus.cloudsim.federation.FederationMember;
+import org.cloudbus.cloudsim.hosts.FederatedHostSimple;
 import org.cloudbus.cloudsim.hosts.Host;
 import org.cloudbus.cloudsim.hosts.HostSuitability;
 import org.cloudbus.cloudsim.vms.FederatedVmSimple;
@@ -39,68 +40,16 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 
-public class FederatedVmAllocationPolicyBestFit extends VmAllocationPolicyAbstract {
+public class FederatedVmAllocationPolicyBestFit extends FederatedVmAllocationPolicyAbstract {
 
     private final FederationMember owner;
 
     private final CloudFederation federation;
 
-    public BiFunction<FederatedDatacenter, Vm, Boolean> getDatacenterEligibleForVMFunction() {
-        return datacenterEligibleForVMFunction;
-    }
-
-    public void setDatacenterEligibleForVMFunction(BiFunction<FederatedDatacenter, Vm, Boolean> datacenterEligibleForVMFunction) {
-        this.datacenterEligibleForVMFunction = datacenterEligibleForVMFunction;
-    }
-
-    public Comparator<FederatedDatacenter> getDatacenterForVmComparator() {
-        return datacenterForVmComparator;
-    }
-
-    public void setDatacenterForVmComparator(Comparator<FederatedDatacenter> datacenterForVmComparator) {
-        this.datacenterForVmComparator = datacenterForVmComparator;
-    }
-
-    private BiFunction<FederatedDatacenter, Vm, Boolean> datacenterEligibleForVMFunction;
-
-    private Comparator<FederatedDatacenter> datacenterForVmComparator;
-
-    private BiFunction<Host, Vm, Boolean> hostEligibleForVMFunction;
-
-    public BiFunction<Host, Vm, Boolean> getHostEligibleForVMFunction() {
-        return hostEligibleForVMFunction;
-    }
-
-    public void setHostEligibleForVMFunction(BiFunction<Host, Vm, Boolean> hostEligibleForVMFunction) {
-        this.hostEligibleForVMFunction = hostEligibleForVMFunction;
-    }
-
-    public Comparator<Host> getHostForVmComparator() {
-        return hostForVmComparator;
-    }
-
-    public void setHostForVmComparator(Comparator<Host> hostForVmComparator) {
-        this.hostForVmComparator = hostForVmComparator;
-    }
-
-    private Comparator<Host> hostForVmComparator;
-
     public FederatedVmAllocationPolicyBestFit(FederationMember owner,
                                               CloudFederation federation) {
         this.owner = owner;
         this.federation = federation;
-    }
-
-    public FederatedVmAllocationPolicyBestFit(FederationMember owner,
-                                              CloudFederation federation,
-                                              BiFunction<FederatedDatacenter, Vm, Boolean> datacenterEligibleForVMFunction,
-                                              Comparator<FederatedDatacenter> datacenterForVmComparator, BiFunction<Host, Vm, Boolean> hostEligibleForVMFunction, Comparator<Host> hostForVmComparator) {
-        this.owner = owner;
-        this.federation = federation;
-        this.datacenterEligibleForVMFunction = datacenterEligibleForVMFunction;
-        this.datacenterForVmComparator = datacenterForVmComparator;
-        this.hostEligibleForVMFunction = hostEligibleForVMFunction;
-        this.hostForVmComparator= hostForVmComparator;
     }
 
 
@@ -129,6 +78,7 @@ public class FederatedVmAllocationPolicyBestFit extends VmAllocationPolicyAbstra
 
     @Override
     protected Optional<Host> defaultFindHostForVm(final Vm vm) {
+        double vmAllocationLatency = 0;
         if(!(vm instanceof FederatedVmSimple)){
             LOGGER.error("VM is not a FederatedVmSimple instance");
             throw new RuntimeException("FederatedDatacenter received non FederatedVmSimple instance");
@@ -138,39 +88,35 @@ public class FederatedVmAllocationPolicyBestFit extends VmAllocationPolicyAbstra
         // finds the host with the least amount of free PEs owned by the federation member
         Optional<Host> hostFromUserThatCanSupportTheVm = vmOwner.getDatacenters().stream().
             flatMap(dc -> dc.getHostList().stream()).filter(host -> host.isSuitableForVm(vm)).
-            max(Comparator.comparingLong(Host::getFreePesNumber));
+            min(Comparator.comparingLong(Host::getFreePesNumber));
 
         if (hostFromUserThatCanSupportTheVm.isPresent()){
             return hostFromUserThatCanSupportTheVm;
         }
 
         // if no datacenters can host the user VM, look on datacenters from other members of the federation
-        return vmOwner.getDatacentersFromOtherMembers().stream().flatMap(dc -> dc.getHostList().stream()).
-            filter(host -> host.isSuitableForVm(vm)).
-            max(Comparator.comparingLong(Host::getFreePesNumber));
-
-    }
-
-    private Optional<Host> getBestHostFromDatacenter(Vm vm, List<FederatedDatacenter> datacenters) {
-        if(!datacenters.isEmpty()){
-            FederatedDatacenter chosenDatacenter = datacenters.get(0);
-            List<Host> eligibleHosts = chosenDatacenter.getHostList().stream().filter(host -> hostEligibleForVMFunction.apply(host, vm)).
-                collect(Collectors.toList());
-            if(hostForVmComparator != null){
-                eligibleHosts.sort(hostForVmComparator);
-            }
-            if(!eligibleHosts.isEmpty()){
-                return Optional.ofNullable(eligibleHosts.get(0));
+        boolean seen = false;
+        Host best = null;
+        Comparator<Host> comparator = Comparator.comparingLong(Host::getFreePesNumber);
+        for (FederatedDatacenter dc : vmOwner.getDatacentersFromOtherMembers()) {
+            for (Host host : dc.getHostList()) {
+                if (host.isSuitableForVm(vm)) {
+                    if (!seen || comparator.compare(host, best) < 0) {
+                        seen = true;
+                        best = host;
+                    }
+                    FederationMember hostOwner  = ((FederatedDatacenter) host.getDatacenter()).getOwner();
+                    Double latencyBetweenDCs = owner.getFederation().
+                        getMemberToMemberLatencyMap(hostOwner).get(this.owner);
+                    if( latencyBetweenDCs > vmAllocationLatency){
+                        vmAllocationLatency = latencyBetweenDCs;
+                    }
+                }
             }
         }
-        return Optional.empty();
-    }
+        ((FederatedDatacenter)getDatacenter()).updateTimeSpentFindingHostForVm(vm, vmAllocationLatency);
+        return seen ? Optional.of(best) : Optional.empty();
 
-
-
-    public boolean defaultDatacenterEligibleForVMFunction(Datacenter datacenter, Vm vm){
-        return datacenter.getHostList().stream().anyMatch(host-> host.isSuitableForVm(vm));
-    }
-
+}
 
 }

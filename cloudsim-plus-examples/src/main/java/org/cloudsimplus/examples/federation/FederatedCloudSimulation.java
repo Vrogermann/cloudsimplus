@@ -28,7 +28,6 @@ import org.cloudbus.cloudsim.allocationpolicies.*;
 import org.cloudbus.cloudsim.brokers.FederatedDatacenterBrokerSimple;
 import org.cloudbus.cloudsim.cloudlets.FederatedCloudletSimple;
 import org.cloudbus.cloudsim.core.CloudSim;
-import org.cloudbus.cloudsim.datacenters.Datacenter;
 import org.cloudbus.cloudsim.datacenters.FederatedDatacenter;
 import org.cloudbus.cloudsim.federation.CloudFederation;
 import org.cloudbus.cloudsim.federation.FederationMember;
@@ -53,6 +52,9 @@ import org.cloudsimplus.util.*;
 import java.io.*;
 import java.net.URL;
 import java.nio.file.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -63,7 +65,7 @@ import static org.cloudbus.cloudsim.util.MathUtil.positive;
 public class FederatedCloudSimulation {
     private static final URL BOT_CSV_FILE = FederatedCloudSimulation.class.getClassLoader().getResource("workload/ufpel/outputconverted.csv");
 
-    private static final Path RESULTS_LOCATION = Paths.get("X:/tcc/cloudsimplus/cloudsim-plus-examples/src/main/resources/workload/ufpel/results");
+    private static final Path RESULTS_LOCATION = Paths.get("C:\\Users\\victo\\Documents\\ufpel\\cloudsimplus\\cloudsim-plus-examples\\src\\main\\resources\\workload\\ufpel\\results");
 
     private static final List<Records.University> UNIVERSITIES =
         Arrays.asList(new Records.University("Universidade Federal do Rio de Janeiro",
@@ -82,86 +84,46 @@ public class FederatedCloudSimulation {
                 1,
                 4,
                 "UNIFESP"));
-    private static final List<Records.University> UNIVERSITIES_FULL =
+    private static final List<Records.University> UNIVERSITIES_BASELINE =
         Arrays.asList(new Records.University("Universidade Federal do Rio de Janeiro",
                 new Records.Coordinates(-22.862312050419078, -43.22317329523859),
-                0,
-                1,
-                10,
-                5,
-                1,
+                0,1,10,10,10,
                 "UFRJ"),
             new Records.University("Universidade Federal de São Paulo",
                 new Records.Coordinates(-23.598773, -46.643422),
-                1,
-                1,
-                20,
-                10,
-                1,
+                1,1,20,5,20,
                 "UNIFESP"),
             new Records.University("Universidade Federal de Minas Gerais",
                 new Records.Coordinates(-19.870581085957383, -43.967746630914675),
-                2,
-                1,
-                30,
-                15,
-                1,
+                2,2,15,15,8,
                 "UFMG"),
             new Records.University("Universidade Federal do Rio Grande Do Sul",
                 new Records.Coordinates(-30.033907564026826, -51.21900538654607),
-                3,
-                1,
-                40,
-                10,
-                1,
+                3,1,20,8,15,
                 "UFRGS"),
             new Records.University("Universidade Federal de Santa Catarina",
                 new Records.Coordinates(-26.23485949891767, -48.88401144670387),
-                4,
-                1,
-                40,
-                5,
-                1,
+                4,2,12,12,10,
                 "UFSC"),
             new Records.University("Universidade Federal de São Carlos",
                 new Records.Coordinates(-21.983975081254595, -47.88152180795202),
-                5,
-                1,
-                30,
-                10,
-                1,
+                5,1,20,6,15,
                 "UFSCar"),
             new Records.University("Universidade Federal do Paraná",
                 new Records.Coordinates(-25.426871793799748, -49.26175798375143),
-                6,
-                1,
-                20,
-                15,
-                1,
+                6,2,8,7,12,
                 "UFPR"),
             new Records.University("Universidade Federal do Pernambuco",
                 new Records.Coordinates(-8.01710961795856, -34.950500616736285),
-                7,
-                1,
-                10,
-                10,
-                1,
+                7,1,10,20,7,
                 "UFPE"),
             new Records.University("Universidade Federal da Bahia",
                 new Records.Coordinates(-13.00365838049915, -38.509963739614044),
-                8,
-                1,
-                30,
-                5,
-                1,
+                8,1,30,4,20,
                 "UFBA"),
             new Records.University("Universidade Federal de Juiz de Fora",
                 new Records.Coordinates(-21.776859501069005, -43.36904141993076),
-                9,
-                1,
-                20,
-                2,
-                50,
+                9,2,20,5,8,
                 "UFJF"));
 
     private static final int HOST_PES = 4;
@@ -174,6 +136,7 @@ public class FederatedCloudSimulation {
     private static final int CLOUDLETS = 73;
     private static final int CLOUDLET_PES = 1;
     private static final int CLOUDLET_LENGTH = 10_000;
+    private static final double MIN_TIME_BETWEEN_EVENTS = 0.00001;
 
     private final CloudSim simulation;
 
@@ -189,11 +152,11 @@ public class FederatedCloudSimulation {
           Make sure to import org.cloudsimplus.util.Log;*/
         Log.setLevel(Level.ALL);
 
-        simulation = new CloudSim();
+        simulation = new CloudSim(MIN_TIME_BETWEEN_EVENTS);
         CloudFederation federation = new CloudFederation("Federal Universities of Brazil", 0L);
-
-        bagOfTasksList = BotFileReader.readBoTFile(BOT_CSV_FILE.getFile(), null);
-        UNIVERSITIES_FULL.forEach(university -> {
+        OptionalLong lineLimit = UNIVERSITIES_BASELINE.stream().mapToLong(university-> UNIVERSITIES_BASELINE.size() * (university.numberOfUsers() * university.BoTsPerUser()) + university.id()).max();
+        bagOfTasksList = BotFileReader.readBoTFile(BOT_CSV_FILE.getFile(), lineLimit.isPresent()? lineLimit.getAsLong() : null);
+        UNIVERSITIES_BASELINE.forEach(university -> {
             FederationMember federationMember = new FederationMember(university.name(), university.abbreviation(),
                 university.id(), federation, university.coordinates());
             federationMember.setBotsPerUser(Long.valueOf(university.BoTsPerUser()));
@@ -207,7 +170,7 @@ public class FederatedCloudSimulation {
                 cloudlet.getOwner().equals(vm.getVmOwner()) && vm.getBotJobId() != null
                     && vm.getBotJobId().equals(cloudlet.getBotJobId()) &&
                     Objects.equals(vm.getBotTaskNumber(), cloudlet.getBotTaskNumber()));
-            federationMember.getBroker().setName("broker_" + university.name().replace(" ", "_"));
+            federationMember.getBroker().setName("broker_" + university.abbreviation().replace(" ", "_"));
 
             federationMember.setDatacenters(Set.copyOf(createDatacenters(federationMember, university)));
             List<FederatedCloudletSimple> cloudlets = createCloudlets(university, federationMember);
@@ -223,7 +186,7 @@ public class FederatedCloudSimulation {
             federation.getMembers().stream().flatMap(member -> member.getBroker().getCloudletFinishedList().stream()).
                 map(cloudlet -> (FederatedCloudletSimple) cloudlet).toList();
 
-        final Path baseResultPath = RESULTS_LOCATION.resolve(new Date().getTime() + "/");
+        final Path baseResultPath = RESULTS_LOCATION.resolve(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME).replace(':', '-') + "_"+ federation.getAllDatacenters().stream().findAny().get().getVmAllocationPolicy().getClass().getSimpleName() +"/");
         baseResultPath.toFile().mkdirs();
         Path botData = baseResultPath.resolve("botData.csv");
         try {
@@ -246,7 +209,7 @@ public class FederatedCloudSimulation {
 
 
         // também mostra a tabela no stdout
-        new FederatedCloudletsTableBuilder(finishedFederatedCloudlets).build();
+//        new FederatedCloudletsTableBuilder(finishedFederatedCloudlets).build();
 
 
         // dados de execução de cada host de cada datacenter
@@ -299,7 +262,7 @@ public class FederatedCloudSimulation {
             }
 
             // mostrar a tabela também no stdout
-            new FederatedHostHistoryTableBuilder(host).setTitle(((FederatedHostSimple) host).getName()).build();
+//            new FederatedHostHistoryTableBuilder(host).setTitle(((FederatedHostSimple) host).getName()).build();
 
         });
 
@@ -407,7 +370,7 @@ public class FederatedCloudSimulation {
     private List<FederatedCloudletSimple> createCloudlets(Records.University university,
                                                           FederationMember federationMember) {
 
-        int currentBotIndex = university.id();
+        int currentBotIndex = 0;
         final List<FederatedCloudletSimple> list = new ArrayList<>(university.BoTsPerUser());
 
             for (int currentUser = 0; currentUser < university.numberOfUsers(); currentUser++) {
@@ -415,11 +378,11 @@ public class FederatedCloudSimulation {
 
 
                 for (int i = 0; i < university.BoTsPerUser(); i++) {
-                    int index = UNIVERSITIES_FULL.size() * currentBotIndex + university.id();
+                    int index = UNIVERSITIES_BASELINE.size() * currentBotIndex + university.id();
 
                     if (index >= bagOfTasksList.size()) {
                         throw new RuntimeException(String.format("Não há BoTs suficientes para executar a simulação, " +
-                                "foram requisitados {0} mas a lista de BoTs só contem {1} itens.",
+                                "foram requisitados %d mas a lista de BoTs só contem %d itens.",
                             index,
                             bagOfTasksList.size()));
                     }

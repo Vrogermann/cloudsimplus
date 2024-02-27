@@ -89,7 +89,7 @@ public class FederatedVmAllocationPolicyDualLayerRoundRobin extends VmAllocation
             throw new RuntimeException("FederatedDatacenter received non FederatedVmSimple instance");
         }
 
-
+        double vmAllocationLatency = 0;
         FederationMember vmOwner = ((FederatedVmSimple) vm).getVmOwner().getFederationMember();
         if(localHostList == null){
             localHostList = vmOwner.getDatacenters().stream().
@@ -112,11 +112,16 @@ public class FederatedVmAllocationPolicyDualLayerRoundRobin extends VmAllocation
         for (int i = 0; i < maxTriesExternal; i++) {
             final Host host = externalHostList.get(lastExternalIndex);
             lastExternalIndex = ++lastExternalIndex % externalHostList.size();
+            FederationMember hostOwner  = ((FederatedDatacenter) host.getDatacenter()).getOwner();
+            Double latencyBetweenDCs = owner.getFederation().
+                getMemberToMemberLatencyMap(hostOwner).get(this.owner);
+            vmAllocationLatency += latencyBetweenDCs;
             if (host.isSuitableForVm(vm)) {
+                ((FederatedDatacenter)getDatacenter()).updateTimeSpentFindingHostForVm(vm, vmAllocationLatency);
                 return Optional.of(host);
             }
         }
-
+        ((FederatedDatacenter)getDatacenter()).updateTimeSpentFindingHostForVm(vm, vmAllocationLatency);
         return Optional.empty();
 
     }

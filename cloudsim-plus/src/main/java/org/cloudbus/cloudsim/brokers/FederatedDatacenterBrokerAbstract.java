@@ -965,11 +965,11 @@ public abstract class FederatedDatacenterBrokerAbstract extends CloudSimEntity i
         final String fallbackMsg = isFallbackDatacenter ? " (due to lack of a suitable Host in previous one)" : "";
         if(vm.getSubmissionDelay() == 0)
             LOGGER.info(
-                "{}: {}: broker enviou vm {} para o datacenter  in {}{}",
+                "{}: {}: broker enviou vm {} para o datacenter {}{}",
                 getSimulation().clockStr(), getName(), vm, datacenter.getName(), fallbackMsg);
         else
             LOGGER.info(
-                "{}: {}: broker vai esperar para mandar a vm {} para o datacenter {}{} em {} seconds",
+                "{}: {}: Aguardando para enviar {} ao datacenter {}{} em {} segundos",
                 getSimulation().clockStr(), getName(), vm, datacenter.getName(),
                 fallbackMsg, vm.getSubmissionDelay());
     }
@@ -1053,10 +1053,10 @@ public abstract class FederatedDatacenterBrokerAbstract extends CloudSimEntity i
             cloudlet.getSubmissionDelay() > 0 ?
                 String.format(" with a requested delay of %.0f seconds", cloudlet.getSubmissionDelay()) :
                 "";
-
+        FederatedCloudletSimple federatedCloudlet = (FederatedCloudletSimple) cloudlet;
         LOGGER.info(
             "{}: {}: Sending Cloudlet {} to {} in {}{}.",
-            getSimulation().clockStr(), getName(), cloudlet.getId(),
+            getSimulation().clockStr(), getName(),federatedCloudlet.getBotJobId() + "/" + federatedCloudlet.getBotTaskNumber() ,
             lastSelectedVm, lastSelectedVm.getHost(), delayMsg);
     }
 

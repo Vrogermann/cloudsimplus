@@ -1102,7 +1102,7 @@ public class FederatedHostSimple implements Host {
     public String toString() {
         final String dc =
                 datacenter == null || Datacenter.NULL.equals(datacenter) ? "" :
-                String.format("/DC %d", datacenter.getId());
+                String.format("/DC %s", datacenter.getName());
         return String.format("Host %d%s", getId(), dc);
     }
 

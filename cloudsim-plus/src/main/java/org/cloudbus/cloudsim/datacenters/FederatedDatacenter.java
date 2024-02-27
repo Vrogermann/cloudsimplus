@@ -6,7 +6,6 @@
  */
 package org.cloudbus.cloudsim.datacenters;
 
-import org.cloudbus.cloudsim.allocationpolicies.FederatedVmAllocationPolicyFindFirst;
 import org.cloudbus.cloudsim.allocationpolicies.VmAllocationPolicy;
 import org.cloudbus.cloudsim.allocationpolicies.VmAllocationPolicySimple;
 import org.cloudbus.cloudsim.allocationpolicies.migration.VmAllocationPolicyMigration;
@@ -43,6 +42,7 @@ import java.util.*;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
+import static java.lang.Math.max;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
@@ -64,6 +64,8 @@ public class FederatedDatacenter extends CloudSimEntity implements Datacenter {
      * @see #getBandwidthPercentForMigration()
      */
     private double bandwidthPercentForMigration;
+
+    private final Map<Vm, Double> timeSpentFindingHostForVmMap;
 
     /**
      * Indicates if migrations are disabled or not.
@@ -163,6 +165,8 @@ public class FederatedDatacenter extends CloudSimEntity implements Datacenter {
         setDatacenterStorage(storage);
         setPowerModel(new PowerModelDatacenterSimple(this));
 
+        this.timeSpentFindingHostForVmMap = new HashMap<>();
+
         this.onHostAvailableListeners = new ArrayList<>();
         this.onVmMigrationFinishListeners = new ArrayList<>();
         this.characteristics = new DatacenterCharacteristicsSimple(this);
@@ -173,6 +177,10 @@ public class FederatedDatacenter extends CloudSimEntity implements Datacenter {
         this.lastMigrationMap = Collections.emptyMap();
 
         setVmAllocationPolicy(vmAllocationPolicy);
+    }
+
+    public void updateTimeSpentFindingHostForVm(Vm vm, Double timesSpent){
+        this.timeSpentFindingHostForVmMap.put(vm, timesSpent);
     }
 
     private void setHostList(final List<? extends Host> hostList) {
@@ -192,7 +200,7 @@ public class FederatedDatacenter extends CloudSimEntity implements Datacenter {
     }
 
     protected long setupHost(final Host host, long nextId) {
-        nextId = Math.max(nextId, -1);
+        nextId = max(nextId, -1);
         if(host.getId() < 0) {
             host.setId(++nextId);
         }
@@ -206,11 +214,15 @@ public class FederatedDatacenter extends CloudSimEntity implements Datacenter {
 
     @Override
     public void processEvent(final SimEvent evt) {
-        if (processCloudletEvents(evt) || processVmEvents(evt) || processNetworkEvents(evt) || processHostEvents(evt)) {
+        if (processCloudletEvents(evt) || processVmEvents(evt) || processNetworkEvents(evt) || processHostEvents(evt) || processSimulationEnd(evt)) {
             return;
         }
 
         LOGGER.trace("{}: {}: Unknown event {} received.", getSimulation().clockStr(), this, evt.getTag());
+    }
+
+    private boolean processSimulationEnd(SimEvent evt) {
+        return updateCloudletProcessing() != Double.MAX_VALUE;
     }
 
     private boolean processHostEvents(final SimEvent evt) {
@@ -402,7 +414,7 @@ public class FederatedDatacenter extends CloudSimEntity implements Datacenter {
             notifyBrokerAboutAlreadyFinishedCloudlet(cloudlet, ack);
             return false;
         }
-        // TODO check if current datacenter has resources to run this cloudlet, and submit to another if it doesn't
+
         cloudlet.assignToDatacenter(this);
         submitCloudletToVm(cloudlet, ack);
         return true;
@@ -506,15 +518,22 @@ public class FederatedDatacenter extends CloudSimEntity implements Datacenter {
     private boolean processVmCreate(final SimEvent evt) {
         final FederatedVmSimple vm = (FederatedVmSimple) evt.getData();
         LOGGER.info(
-            "{}: {}: iniciando criação da vm {} enviada pelo broker {}",getSimulation().clockStr(), this.getName(), vm, vm.getBroker());
+            "{}: {}: iniciando criação da {} enviada pelo {}",getSimulation().clockStr(), this.getName(), vm, vm.getBroker().getName());
         final boolean hostAllocatedForVm = vmAllocationPolicy.allocateHostForVm(vm).fully();
         if (hostAllocatedForVm) {
             vm.updateProcessing(vm.getHost().getVmScheduler().getAllocatedMips(vm));
         }
 
-        /* Acknowledges that the request was received by the Datacenter,
-          (the broker is expecting that if the Vm was created or not). */
-        send(vm.getBroker(), getSimulation().getMinTimeBetweenEvents(), CloudSimTags.VM_CREATE_ACK, vm);
+
+        double timeSpentFindingHostForVm =
+            timeSpentFindingHostForVmMap.get(vm) != null ? timeSpentFindingHostForVmMap.get(vm) : 0;
+
+        double timeBeforeSendingMessageToBroker =
+            max(timeSpentFindingHostForVm, getSimulation().getMinTimeBetweenEvents());
+
+                /* Acknowledges that the request was received by the Datacenter,
+          If the FederatedVmAllocationPolicy waited to communicate to other datacenters, the delay is added to the response */
+        send(vm.getBroker(), timeBeforeSendingMessageToBroker, CloudSimTags.VM_CREATE_ACK, vm);
 
         return hostAllocatedForVm;
     }
@@ -682,7 +701,7 @@ public class FederatedDatacenter extends CloudSimEntity implements Datacenter {
 
         // Guarantees a minimal interval before scheduling the event
         final double minTimeBetweenEvents = getSimulation().getMinTimeBetweenEvents()+0.01;
-        nextSimulationDelay = nextSimulationDelay == 0 ? nextSimulationDelay : Math.max(nextSimulationDelay, minTimeBetweenEvents);
+        nextSimulationDelay = nextSimulationDelay == 0 ? nextSimulationDelay : max(nextSimulationDelay, minTimeBetweenEvents);
 
         if (nextSimulationDelay == Double.MAX_VALUE) {
             return nextSimulationDelay;
@@ -929,7 +948,7 @@ public class FederatedDatacenter extends CloudSimEntity implements Datacenter {
 
     @Override
     public final Datacenter setSchedulingInterval(final double schedulingInterval) {
-        this.schedulingInterval = Math.max(schedulingInterval, 0);
+        this.schedulingInterval = max(schedulingInterval, 0);
         return this;
     }
 
@@ -1186,8 +1205,8 @@ public class FederatedDatacenter extends CloudSimEntity implements Datacenter {
 
         // if this cloudlet is in the exec queue
         if (estimatedFinishTime > 0.0 && !Double.isInfinite(estimatedFinishTime)) {
-            send(this,
-                getCloudletProcessingUpdateInterval(estimatedFinishTime),
+            send(cloudlet.getLastTriedDatacenter(),
+                getSimulation().getMinTimeBetweenEvents(),
                 CloudSimTags.VM_UPDATE_CLOUDLET_PROCESSING);
         }
 

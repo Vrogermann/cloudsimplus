@@ -1,11 +1,11 @@
 package org.cloudbus.cloudsim.federation;
 
+import org.apache.lucene.util.SloppyMath;
 import org.cloudbus.cloudsim.datacenters.FederatedDatacenter;
+import org.cloudsimplus.util.Records;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+
 /**
 Represents a Cloud federation, where different organizations can share datacenters
  */
@@ -14,7 +14,13 @@ public class CloudFederation {
         return members;
     }
 
+    public  Map<FederationMember, Double> getMemberToMemberLatencyMap(FederationMember member) {
+        return memberToMemberLatencyMap.get(member);
+    }
 
+    private final Map<FederationMember, Map<FederationMember, Double>> memberToMemberLatencyMap;
+
+    private final double SPEED_OF_LIGHT = 200_000;
 
     private final Set<FederationMember> members;
     private String name;
@@ -24,6 +30,7 @@ public class CloudFederation {
         this.name = name;
         this.id = id;
         this.members = new HashSet<>();
+        memberToMemberLatencyMap = new HashMap<>();
     }
 
     public String getName() {
@@ -53,6 +60,24 @@ public class CloudFederation {
         }
         members.add(member);
         member.setFederation(this);
+        Map<FederationMember, Double> newMemberMap = new HashMap<>();
+        memberToMemberLatencyMap.put(member, newMemberMap);
+
+        // calcular a latência de comunicação do novo membro com os membros existentes
+        Records.Coordinates newMemberCoordinates = member.getCoordinates();
+        members.forEach((currentMember)->{
+            Records.Coordinates currentMemberCoordinates = currentMember.getCoordinates();
+            newMemberMap.put(currentMember, SloppyMath.haversin(newMemberCoordinates.latitude(),
+                newMemberCoordinates.longitude(),
+                currentMemberCoordinates.latitude(),
+                currentMemberCoordinates.longitude())/ SPEED_OF_LIGHT * 2);
+        });
+
+
+        // salvar a latência no mapa dos outros membros
+        memberToMemberLatencyMap.forEach((currentMember, currentMemberMap)->{
+            currentMemberMap.computeIfAbsent(member, (m)-> newMemberMap.get(currentMember));
+        });
         return true;
     }
 
