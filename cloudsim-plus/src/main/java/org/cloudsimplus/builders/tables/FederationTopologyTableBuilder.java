@@ -77,7 +77,7 @@ public class FederationTopologyTableBuilder extends TableBuilderAbstract<Records
             (Records.University::abbreviation));
 
         addColumnDataFunction(getTable().addColumn("University Coordinates"),
-            (university -> String.format("%s, %s",university.coordinates().latitude(), university.coordinates().longitude())));
+            (university -> String.format("%s; %s",university.coordinates().latitude(), university.coordinates().longitude())));
 
         addColumnDataFunction(getTable().addColumn("Number of Datacenters"),
             (Records.University::datacenterAmount));

@@ -13,6 +13,10 @@ public class ConvertedBoT {
 
     private List<FederatedVmSimple> vms;
 
+    public List<FederatedVmSimple> getVms() {
+        return vms;
+    }
+
     private FederationMemberUser owner;
 
     public BoT getOriginalBoT() {

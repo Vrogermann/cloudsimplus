@@ -39,7 +39,7 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 
-public class FederatedVmAllocationPolicySingleLayerRoundRobin extends VmAllocationPolicyAbstract {
+public class FederatedVmAllocationPolicySingleLayerRoundRobin extends FederatedVmAllocationPolicyAbstract {
 
     private final FederationMember owner;
 
@@ -49,58 +49,11 @@ public class FederatedVmAllocationPolicySingleLayerRoundRobin extends VmAllocati
 
     private final CloudFederation federation;
 
-
-    public void setDatacenterEligibleForVMFunction(BiFunction<FederatedDatacenter, Vm, Boolean> datacenterEligibleForVMFunction) {
-        this.datacenterEligibleForVMFunction = datacenterEligibleForVMFunction;
-    }
-
-    public Comparator<FederatedDatacenter> getDatacenterForVmComparator() {
-        return datacenterForVmComparator;
-    }
-
-    private BiFunction<FederatedDatacenter, Vm, Boolean> datacenterEligibleForVMFunction;
-
-    private Comparator<FederatedDatacenter> datacenterForVmComparator;
-
-    private BiFunction<Host, Vm, Boolean> hostEligibleForVMFunction;
-
-    public BiFunction<Host, Vm, Boolean> getHostEligibleForVMFunction() {
-        return hostEligibleForVMFunction;
-    }
-
-    public void setHostEligibleForVMFunction(BiFunction<Host, Vm, Boolean> hostEligibleForVMFunction) {
-        this.hostEligibleForVMFunction = hostEligibleForVMFunction;
-    }
-
-    public Comparator<Host> getHostForVmComparator() {
-        return hostForVmComparator;
-    }
-
-    public void setHostForVmComparator(Comparator<Host> hostForVmComparator) {
-        this.hostForVmComparator = hostForVmComparator;
-    }
-
-    private Comparator<Host> hostForVmComparator;
-
     public FederatedVmAllocationPolicySingleLayerRoundRobin(FederationMember owner,
                                                             CloudFederation federation) {
         this.owner = owner;
         this.federation = federation;
     }
-
-    public FederatedVmAllocationPolicySingleLayerRoundRobin(FederationMember owner,
-                                                            CloudFederation federation,
-                                                            BiFunction<FederatedDatacenter, Vm, Boolean> datacenterEligibleForVMFunction,
-                                                            Comparator<FederatedDatacenter> datacenterForVmComparator, BiFunction<Host, Vm, Boolean> hostEligibleForVMFunction, Comparator<Host> hostForVmComparator) {
-        this.owner = owner;
-        this.federation = federation;
-        this.datacenterEligibleForVMFunction = datacenterEligibleForVMFunction;
-        this.datacenterForVmComparator = datacenterForVmComparator;
-        this.hostEligibleForVMFunction = hostEligibleForVMFunction;
-        this.hostForVmComparator= hostForVmComparator;
-    }
-
-
     @Override
     public HostSuitability allocateHostForVm(final Vm vm) {
         if (federation.getAllDatacenters().stream().allMatch(federatedDatacenter -> federatedDatacenter.getHostList().isEmpty())) {

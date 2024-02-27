@@ -17,6 +17,9 @@ public class CloudFederation {
     public  Map<FederationMember, Double> getMemberToMemberLatencyMap(FederationMember member) {
         return memberToMemberLatencyMap.get(member);
     }
+    public  Map<FederationMember, Map<FederationMember, Double>> getAllLatencyMaps() {
+        return memberToMemberLatencyMap;
+    }
 
     private final Map<FederationMember, Map<FederationMember, Double>> memberToMemberLatencyMap;
 

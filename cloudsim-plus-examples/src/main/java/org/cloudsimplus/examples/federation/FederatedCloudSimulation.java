@@ -24,10 +24,14 @@
 package org.cloudsimplus.examples.federation;
 
 import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.classic.joran.JoranConfigurator;
+import ch.qos.logback.core.joran.spi.JoranException;
 import org.cloudbus.cloudsim.allocationpolicies.*;
 import org.cloudbus.cloudsim.brokers.FederatedDatacenterBrokerSimple;
 import org.cloudbus.cloudsim.cloudlets.FederatedCloudletSimple;
 import org.cloudbus.cloudsim.core.CloudSim;
+import org.cloudbus.cloudsim.datacenters.Datacenter;
 import org.cloudbus.cloudsim.datacenters.FederatedDatacenter;
 import org.cloudbus.cloudsim.federation.CloudFederation;
 import org.cloudbus.cloudsim.federation.FederationMember;
@@ -48,13 +52,15 @@ import org.cloudsimplus.traces.ufpel.BoT;
 import org.cloudsimplus.traces.ufpel.ConvertedBoT;
 import org.cloudsimplus.util.Log;
 import org.cloudsimplus.util.*;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.nio.file.*;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -67,96 +73,115 @@ public class FederatedCloudSimulation {
 
     private static final Path RESULTS_LOCATION = Paths.get("C:\\Users\\victo\\Documents\\ufpel\\cloudsimplus\\cloudsim-plus-examples\\src\\main\\resources\\workload\\ufpel\\results");
 
-    private static final List<Records.University> UNIVERSITIES =
-        Arrays.asList(new Records.University("Universidade Federal do Rio de Janeiro",
-                new Records.Coordinates(-22.862312050419078, -43.22317329523859),
-                0,
-                1,
-                1,
-                8,
-                1,
-                "UFRJ"),
-            new Records.University("Universidade Federal de São Paulo",
-                new Records.Coordinates(-23.598773, -46.643422),
-                1,
-                1,
-                100,
-                1,
-                4,
-                "UNIFESP"));
+
     private static final List<Records.University> UNIVERSITIES_BASELINE =
         Arrays.asList(new Records.University("Universidade Federal do Rio de Janeiro",
                 new Records.Coordinates(-22.862312050419078, -43.22317329523859),
-                0,1,10,10,10,
+                0, 1, 10, 10, 10,
                 "UFRJ"),
             new Records.University("Universidade Federal de São Paulo",
                 new Records.Coordinates(-23.598773, -46.643422),
-                1,1,20,5,20,
+                1, 1, 10, 10, 10,
                 "UNIFESP"),
             new Records.University("Universidade Federal de Minas Gerais",
                 new Records.Coordinates(-19.870581085957383, -43.967746630914675),
-                2,2,15,15,8,
+                2, 1, 10, 10, 10,
                 "UFMG"),
             new Records.University("Universidade Federal do Rio Grande Do Sul",
                 new Records.Coordinates(-30.033907564026826, -51.21900538654607),
-                3,1,20,8,15,
+                3, 1, 10, 10, 10,
                 "UFRGS"),
             new Records.University("Universidade Federal de Santa Catarina",
                 new Records.Coordinates(-26.23485949891767, -48.88401144670387),
-                4,2,12,12,10,
+                4, 1, 10, 10, 10,
                 "UFSC"),
             new Records.University("Universidade Federal de São Carlos",
                 new Records.Coordinates(-21.983975081254595, -47.88152180795202),
-                5,1,20,6,15,
+                5, 1, 10, 10, 10,
                 "UFSCar"),
             new Records.University("Universidade Federal do Paraná",
                 new Records.Coordinates(-25.426871793799748, -49.26175798375143),
-                6,2,8,7,12,
+                6, 1, 10, 10, 10,
                 "UFPR"),
             new Records.University("Universidade Federal do Pernambuco",
                 new Records.Coordinates(-8.01710961795856, -34.950500616736285),
-                7,1,10,20,7,
+                7, 1, 10, 10, 10,
                 "UFPE"),
             new Records.University("Universidade Federal da Bahia",
                 new Records.Coordinates(-13.00365838049915, -38.509963739614044),
-                8,1,30,4,20,
+                8, 1, 10, 10, 10,
                 "UFBA"),
             new Records.University("Universidade Federal de Juiz de Fora",
                 new Records.Coordinates(-21.776859501069005, -43.36904141993076),
-                9,2,20,5,8,
+                9, 1, 10, 10, 10,
                 "UFJF"));
+
+    private static final List<Records.ExecutionPlan> simulationExecutionPlanList =
+        List.of(new Records.ExecutionPlan(UNIVERSITIES_BASELINE, "UNIVERSITIES_BASELINE",
+                FederatedVmAllocationPolicyFindFirst.class),
+            new Records.ExecutionPlan(UNIVERSITIES_BASELINE, "UNIVERSITIES_BASELINE",
+                FederatedVmAllocationPolicyBestFit.class),
+            new Records.ExecutionPlan(UNIVERSITIES_BASELINE, "UNIVERSITIES_BASELINE",
+                FederatedVmAllocationPolicyWorstFit.class),
+            new Records.ExecutionPlan(UNIVERSITIES_BASELINE, "UNIVERSITIES_BASELINE",
+                FederatedVmAllocationPolicyDualLayerRoundRobin.class),
+            new Records.ExecutionPlan(UNIVERSITIES_BASELINE, "UNIVERSITIES_BASELINE",
+                FederatedVmAllocationPolicySingleLayerRoundRobin.class));
 
     private static final int HOST_PES = 4;
     private static final int HOST_MIPS = 3450; // from 7zip sandy bridge benchmark on https://www.7-cpu.com/
     private static final int HOST_RAM = 8192; //in Megabytes
     private static final long HOST_BW = 10_000; //in Megabits/s
     private static final long HOST_STORAGE = 10_000; //in Megabytes
-    private static final int VM_PES = 1;
-
-    private static final int CLOUDLETS = 73;
     private static final int CLOUDLET_PES = 1;
-    private static final int CLOUDLET_LENGTH = 10_000;
     private static final double MIN_TIME_BETWEEN_EVENTS = 0.00001;
 
     private final CloudSim simulation;
 
     private final List<BoT> bagOfTasksList;
-    private int currentBotIndex = 0; // Initialize the bot index counter
 
-    public static void main(String[] args) throws IOException {
-        new FederatedCloudSimulation();
+    public static void main(String[] args) {
+        final Path baseResultPath = RESULTS_LOCATION.resolve(LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS).
+            format(DateTimeFormatter.ISO_LOCAL_DATE_TIME).replace(':', '-') + "/");
+        baseResultPath.toFile().mkdirs();
+
+        simulationExecutionPlanList.forEach(executionPlan -> {
+            try {
+                new FederatedCloudSimulation(executionPlan.universityList(), executionPlan.allocationPolicy(),
+                    baseResultPath.resolve(executionPlan.name() + "/" + executionPlan.allocationPolicy().getSimpleName() + "/")
+                );
+            } catch (IOException | JoranException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
     }
 
-    private FederatedCloudSimulation() throws IOException {
+    private FederatedCloudSimulation(List<Records.University> universities,
+                                     Class<? extends FederatedVmAllocationPolicyAbstract> allocationPolicy, Path simulationInstanceResultPath) throws IOException, JoranException {
         /*Enables just some level of log messages.
           Make sure to import org.cloudsimplus.util.Log;*/
+        final String STRATEGY_NAME = simulationInstanceResultPath.toFile().getName();
+        final String SIMULATION_NAME = simulationInstanceResultPath.getParent().toFile().getName();
+        final String SIMULATION_START_TIME = simulationInstanceResultPath.getParent().getParent().toFile().getName();
+        System.setProperty("simulation_folder", String.format("%s/%s/%s", SIMULATION_START_TIME, SIMULATION_NAME, STRATEGY_NAME));
+        LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
+        JoranConfigurator configurator = new JoranConfigurator();
+        configurator.setContext(context);
+        context.reset();
+
+        configurator.doConfigure(LoggerContext.class.getClassLoader().getResource("logback.xml"));
+
+
+
         Log.setLevel(Level.ALL);
+
 
         simulation = new CloudSim(MIN_TIME_BETWEEN_EVENTS);
         CloudFederation federation = new CloudFederation("Federal Universities of Brazil", 0L);
-        OptionalLong lineLimit = UNIVERSITIES_BASELINE.stream().mapToLong(university-> UNIVERSITIES_BASELINE.size() * (university.numberOfUsers() * university.BoTsPerUser()) + university.id()).max();
-        bagOfTasksList = BotFileReader.readBoTFile(BOT_CSV_FILE.getFile(), lineLimit.isPresent()? lineLimit.getAsLong() : null);
-        UNIVERSITIES_BASELINE.forEach(university -> {
+        OptionalLong lineLimit = universities.stream().mapToLong(university -> universities.size() * ((long) university.numberOfUsers() * university.BoTsPerUser()) + university.id()).max();
+        bagOfTasksList = BotFileReader.readBoTFile(BOT_CSV_FILE.getFile(), lineLimit.isPresent() ? lineLimit.getAsLong() : null);
+        universities.forEach(university -> {
             FederationMember federationMember = new FederationMember(university.name(), university.abbreviation(),
                 university.id(), federation, university.coordinates());
             federationMember.setBotsPerUser(Long.valueOf(university.BoTsPerUser()));
@@ -172,8 +197,14 @@ public class FederatedCloudSimulation {
                     Objects.equals(vm.getBotTaskNumber(), cloudlet.getBotTaskNumber()));
             federationMember.getBroker().setName("broker_" + university.abbreviation().replace(" ", "_"));
 
-            federationMember.setDatacenters(Set.copyOf(createDatacenters(federationMember, university)));
-            List<FederatedCloudletSimple> cloudlets = createCloudlets(university, federationMember);
+
+            try {
+                federationMember.setDatacenters(Set.copyOf(createDatacenters(federationMember, university, allocationPolicy)));
+            } catch (NoSuchMethodException | InstantiationException | IllegalAccessException |
+                     InvocationTargetException e) {
+                throw new RuntimeException(e);
+            }
+            List<FederatedCloudletSimple> cloudlets = createCloudlets(university, federationMember, universities);
             List<Vm> Vms = createVmList(cloudlets);
             federationMember.getBroker().submitVmList(Vms);
             federationMember.getBroker().submitCloudletList(cloudlets);
@@ -186,88 +217,19 @@ public class FederatedCloudSimulation {
             federation.getMembers().stream().flatMap(member -> member.getBroker().getCloudletFinishedList().stream()).
                 map(cloudlet -> (FederatedCloudletSimple) cloudlet).toList();
 
-        final Path baseResultPath = RESULTS_LOCATION.resolve(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME).replace(':', '-') + "_"+ federation.getAllDatacenters().stream().findAny().get().getVmAllocationPolicy().getClass().getSimpleName() +"/");
-        baseResultPath.toFile().mkdirs();
-        Path botData = baseResultPath.resolve("botData.csv");
-        try {
-
-            // Cria um PrintStream redirecionado para o arquivo
-            PrintStream printStream = new PrintStream(new FileOutputStream(botData.toFile()));
-            CsvTable csvTable = new CsvTable();
-            csvTable.setPrintStream(printStream);
-            csvTable.setColumnSeparator(",");
-            new FederatedCloudletsTableBuilder(finishedFederatedCloudlets, csvTable).build();
+        simulationInstanceResultPath.toFile().mkdirs();
+        writeUniversityDataCsv(universities, simulationInstanceResultPath, false);
 
 
-            // Fechar o arquivo
-            printStream.close();
-        } catch (IOException e) {
-            System.out.println("Erro ao escrever o arquivo " + botData+ " : " + e);
-        }
+        writeTaskResultCsv(simulationInstanceResultPath, finishedFederatedCloudlets, false);
 
 
+        writeJobResultCsv(simulationInstanceResultPath, finishedFederatedCloudlets, false);
+
+        writeHostUsageDetailCsv(simulationInstanceResultPath, federation, false);
 
 
-        // também mostra a tabela no stdout
-//        new FederatedCloudletsTableBuilder(finishedFederatedCloudlets).build();
-
-
-        // dados de execução de cada host de cada datacenter
-        federation.getAllDatacenters().stream().flatMap(datacenter->datacenter.getHostList().stream()).forEach(host->
-        {
-
-            double totalUsage = 0.0;
-            long totalTime = 0;
-
-
-            List<HostStateHistoryEntry> history = host.getStateHistory();
-
-            for (int i = 0; i < history.size(); i++) {
-                HostStateHistoryEntry currentEntry = history.get(i);
-
-                // evitar acessar index negativo
-                double previousTime = (i == 0) ? 0 : history.get(i - 1).getTime();
-
-                double timeDifference = currentEntry.getTime() - previousTime;
-
-                // Calculo da média ponderada
-                double cpuUsage = currentEntry.getAllocatedMips() / host.getTotalMipsCapacity();
-                totalUsage += cpuUsage * timeDifference;
-                totalTime += timeDifference;
-            }
-
-
-            if (totalTime > 0) {
-                System.out.println("Uso médio de cpu do "+ ((FederatedHostSimple) host).getName() + ": " +
-                    totalUsage / totalTime);
-            } else {
-                System.out.println("Uso médio de cpu do "+ ((FederatedHostSimple) host).getName() +" 0.0");
-            }
-
-            try {
-                PrintStream printStream = getHostUsagePrintStream(host, baseResultPath);
-                CsvTable csvTable = new CsvTable();
-                csvTable.setPrintStream(printStream);
-                csvTable.setColumnSeparator(",");
-                new FederatedHostHistoryTableBuilder(host, csvTable).
-                    setTitle(((FederatedHostSimple) host).getName()).build();
-
-
-                // Fechar o arquivo
-                printStream.close();
-
-            } catch (IOException e) {
-                System.out.println("Erro ao escrever o arquivo do host  " + ((FederatedHostSimple) host).getName()
-                    +" : "+ e);
-            }
-
-            // mostrar a tabela também no stdout
-//            new FederatedHostHistoryTableBuilder(host).setTitle(((FederatedHostSimple) host).getName()).build();
-
-        });
-
-
-        Path datacenterData = baseResultPath.resolve("datacenterData.csv");
+        Path datacenterData = simulationInstanceResultPath.resolve("datacenterData.csv");
         try {
 
             // Cria um PrintStream redirecionado para o arquivo
@@ -281,7 +243,7 @@ public class FederatedCloudSimulation {
             // Fechar o arquivo
             printStream.close();
         } catch (IOException e) {
-            System.out.println("Erro ao escrever o arquivo " + datacenterData+ " : " + e);
+            System.out.println("Erro ao escrever o arquivo " + datacenterData + " : " + e);
         }
 
         // mostrar tabela também no stdout
@@ -290,17 +252,200 @@ public class FederatedCloudSimulation {
 
     }
 
-    private static PrintStream getHostUsagePrintStream(Host host, Path baseResultPath) throws FileNotFoundException {
-        Path datacenterFolder = baseResultPath.resolve("datacenters/" + host.getDatacenter().getName() +"/");
+    private static void writeHostUsageDetailCsv(Path simulationInstanceResultPath, CloudFederation federation, boolean showOnStdout) throws FileNotFoundException {
+        // dados de execução de cada host de cada datacenter
+        List<Records.HostAverageCpuUsage> hostAverageCpuUsageFullList = new ArrayList<>();
+        federation.getAllDatacenters().stream().forEach(datacenter ->
+        {
+
+            List<Records.HostAverageCpuUsage> currentDatacenterHostAverageCpuUsage = new ArrayList<>();
+            datacenter.getHostList().stream().forEach(host -> {
+
+
+                double totalUsage = 0.0;
+                double totalTime = 0;
+
+
+                List<HostStateHistoryEntry> history = host.getStateHistory();
+
+                for (int i = 0; i < history.size(); i++) {
+                    HostStateHistoryEntry currentEntry = history.get(i);
+
+                    // evitar acessar index negativo
+                    double previousTime = (i == 0) ? 0 : history.get(i - 1).getTime();
+
+                    double timeDifference = currentEntry.getTime() - previousTime;
+
+                    // Calculo da média ponderada
+                    double cpuUsage = currentEntry.getAllocatedMips() / host.getTotalMipsCapacity();
+                    totalUsage += cpuUsage * timeDifference;
+                    totalTime += timeDifference;
+                }
+
+                Records.HostAverageCpuUsage hostAverageCpuUsage = new Records.HostAverageCpuUsage(host,
+                    totalTime > 0 ? totalUsage / totalTime : 0);
+
+                currentDatacenterHostAverageCpuUsage.add(hostAverageCpuUsage);
+                hostAverageCpuUsageFullList.add(hostAverageCpuUsage);
+
+                writeHostTimelineCsv(simulationInstanceResultPath, showOnStdout, host);
+
+
+            });
+            try {
+                writeHostAverageUsageCsv(getDatacenterHostAverageCpuUsagePrintStream(datacenter, simulationInstanceResultPath), false, currentDatacenterHostAverageCpuUsage);
+            } catch (FileNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+
+        });
+        writeHostAverageUsageCsv(getFullHostAverageCpuUsagePrintStream(simulationInstanceResultPath), false, hostAverageCpuUsageFullList);
+
+
+    }
+
+    private static void writeHostAverageUsageCsv(PrintStream resultPrintStream, boolean showOnStdout, List<Records.HostAverageCpuUsage> usage) {
+        CsvTable csvTable = new CsvTable();
+        csvTable.setPrintStream(resultPrintStream);
+        csvTable.setColumnSeparator(",");
+        new FederatedDatacenterAverageHostUsageTableBuilder(usage, csvTable).
+            setTitle(usage.get(0).host().getDatacenter().getName()).build();
+
+
+        // Fechar o arquivo
+        resultPrintStream.close();
+
+        if (showOnStdout) {
+            new FederatedDatacenterAverageHostUsageTableBuilder(usage).
+                setTitle(usage.get(0).host().getDatacenter().getName()).build();
+
+        }
+    }
+    private static void writeHostTimelineCsv(Path simulationInstanceResultPath, boolean showOnStdout, Host host) {
+        try {
+            PrintStream printStream = getHostUsageTimelinePrintStream(host, simulationInstanceResultPath);
+            CsvTable csvTable = new CsvTable();
+            csvTable.setPrintStream(printStream);
+            csvTable.setColumnSeparator(",");
+            new FederatedHostHistoryTableBuilder(host, csvTable).
+                setTitle(((FederatedHostSimple) host).getName()).build();
+
+
+            // Fechar o arquivo
+            printStream.close();
+
+        } catch (IOException e) {
+            System.out.println("Erro ao escrever o arquivo do host  " + ((FederatedHostSimple) host).getName()
+                + " : " + e);
+        }
+        if (showOnStdout) {
+            new FederatedHostHistoryTableBuilder(host).setTitle(((FederatedHostSimple) host).getName()).build();
+        }
+    }
+
+    private static void writeJobResultCsv(Path simulationInstanceResultPath,
+                                          List<FederatedCloudletSimple> finishedFederatedCloudlets,
+                                          boolean showOnStdOut) {
+        Path jobData = simulationInstanceResultPath.resolve("jobData.csv");
+        ArrayList<ConvertedBoT> botList = finishedFederatedCloudlets.stream().
+            map(FederatedCloudletSimple::getBoT).distinct().collect(Collectors.toCollection(ArrayList::new));
+        try {
+
+            // Cria um PrintStream redirecionado para o arquivo
+            PrintStream printStream = new PrintStream(new FileOutputStream(jobData.toFile()));
+            CsvTable csvTable = new CsvTable();
+            csvTable.setPrintStream(printStream);
+            csvTable.setColumnSeparator(",");
+
+            new BoTTableBuilder(botList, csvTable).build();
+
+
+            // Fechar o arquivo
+            printStream.close();
+        } catch (IOException e) {
+            System.out.println("Erro ao escrever o arquivo " + jobData + " : " + e);
+        }
+
+        if (showOnStdOut) {
+            new BoTTableBuilder(botList).build();
+        }
+    }
+
+    private static void writeTaskResultCsv(Path simulationInstanceResultPath, List<FederatedCloudletSimple> finishedFederatedCloudlets, boolean showOnStdOut) {
+        Path taskData = simulationInstanceResultPath.resolve("taskData.csv");
+        try {
+
+            // Cria um PrintStream redirecionado para o arquivo
+            PrintStream printStream = new PrintStream(new FileOutputStream(taskData.toFile()));
+            CsvTable csvTable = new CsvTable();
+            csvTable.setPrintStream(printStream);
+            csvTable.setColumnSeparator(",");
+            new FederatedCloudletsTableBuilder(finishedFederatedCloudlets, csvTable).build();
+
+
+            // Fechar o arquivo
+            printStream.close();
+        } catch (IOException e) {
+            System.out.println("Erro ao escrever o arquivo " + taskData + " : " + e);
+        }
+
+        if (showOnStdOut) {
+            new FederatedCloudletsTableBuilder(finishedFederatedCloudlets).build();
+        }
+    }
+
+    private static void writeUniversityDataCsv(List<Records.University> universities, Path simulationInstanceResultPath, boolean showOnStdOut) {
+        Path universitiesData = simulationInstanceResultPath.resolve("universitiesData.csv");
+
+        try {
+
+            // Cria um PrintStream redirecionado para o arquivo
+            PrintStream printStream = new PrintStream(new FileOutputStream(universitiesData.toFile()));
+            CsvTable csvTable = new CsvTable();
+            csvTable.setPrintStream(printStream);
+            csvTable.setColumnSeparator(",");
+            new FederationTopologyTableBuilder(universities, csvTable).build();
+
+
+            // Fechar o arquivo
+            printStream.close();
+        } catch (IOException e) {
+            System.out.println("Erro ao escrever o arquivo " + universitiesData + " : " + e);
+        }
+        if (showOnStdOut) {
+            new FederationTopologyTableBuilder(universities).build();
+        }
+    }
+
+    private static PrintStream getDatacenterHostAverageCpuUsagePrintStream(Datacenter datacenter, Path baseResultPath) throws FileNotFoundException {
+        Path datacenterFolder = baseResultPath.resolve("datacenters/" + datacenter.getName() + "/");
         datacenterFolder.toFile().mkdirs();
 
-        Path hostHistoryDataCsv = datacenterFolder.resolve((((FederatedHostSimple) host).getName()
-            +".csv"));
+        Path hostHistoryDataCsv = datacenterFolder.resolve("hostAverageCpuUsage.csv");
 
         // Cria um PrintStream redirecionado para o arquivo
         return new PrintStream(new FileOutputStream(hostHistoryDataCsv.toFile()));
     }
 
+    private static PrintStream getFullHostAverageCpuUsagePrintStream(Path baseResultPath) throws FileNotFoundException {
+
+        Path hostFullCpuUsageCsv = baseResultPath.resolve("hostData.csv");
+
+        // Cria um PrintStream redirecionado para o arquivo
+        return new PrintStream(new FileOutputStream(hostFullCpuUsageCsv.toFile()));
+    }
+
+
+    private static PrintStream getHostUsageTimelinePrintStream(Host host, Path baseResultPath) throws FileNotFoundException {
+        Path datacenterFolder = baseResultPath.resolve("datacenters/" + host.getDatacenter().getName() + "/hostUsageDetails/");
+        datacenterFolder.toFile().mkdirs();
+
+        Path hostHistoryDataCsv = datacenterFolder.resolve((((FederatedHostSimple) host).getName()
+            + ".csv"));
+
+        // Cria um PrintStream redirecionado para o arquivo
+        return new PrintStream(new FileOutputStream(hostHistoryDataCsv.toFile()));
+    }
 
 
     private List<Vm> createVmList(List<FederatedCloudletSimple> cloudlets) {
@@ -308,7 +453,7 @@ public class FederatedCloudSimulation {
             final FederatedVmSimple vm = new FederatedVmSimple(HOST_MIPS,
                 1,
                 cloudlet.getOwner(),
-                cloudlet.getBoT() );
+                cloudlet.getBoT());
             vm.setRam(HOST_RAM / HOST_PES).
                 setBw(HOST_BW / HOST_PES).
                 setSize(HOST_STORAGE / HOST_PES)
@@ -321,31 +466,27 @@ public class FederatedCloudSimulation {
     }
 
 
-    private List<FederatedDatacenter> createDatacenters(FederationMember federationMember, Records.University university) {
+    private List<FederatedDatacenter> createDatacenters(FederationMember federationMember,
+                                                        Records.University university,
+                                                        Class<? extends FederatedVmAllocationPolicyAbstract> allocationPolicy) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
         List<FederatedDatacenter> datacenters = new ArrayList<>();
         for (int currentDatacenter = 0; currentDatacenter < university.datacenterAmount(); currentDatacenter++) {
             final List<FederatedHostSimple> hostList = new ArrayList<>();
             final String datacenterName = federationMember.getAbbreviation() + "_dc_" + currentDatacenter;
             for (int currentHost = 0; currentHost < university.hostsPerDatacenter(); currentHost++) {
                 FederatedHostSimple host = createHost();
-                host.setName(datacenterName+ "_host_" + currentHost);
+                host.setName(datacenterName + "_host_" + currentHost);
                 hostList.add(host);
             }
-
-
-            FederatedDatacenter federatedDatacenter = new FederatedDatacenter(simulation, hostList,
-//                new FederatedVmAllocationPolicyFindFirst(federationMember, federationMember.getFederation()),
-//                new FederatedVmAllocationPolicyWorstFit(federationMember, federationMember.getFederation()),
-                //new FederatedVmAllocationPolicyBestFit(federationMember, federationMember.getFederation()),
-//                new FederatedVmAllocationPolicySingleLayerRoundRobin(federationMember, federationMember.getFederation()),
-                new FederatedVmAllocationPolicyDualLayerRoundRobin(federationMember, federationMember.getFederation()),
+//
+            FederatedVmAllocationPolicyAbstract allocationPolicyInstance = allocationPolicy.getConstructor(FederationMember.class, CloudFederation.class).newInstance(federationMember, federationMember.getFederation());
+            FederatedDatacenter federatedDatacenter = new FederatedDatacenter(simulation, hostList, allocationPolicyInstance,
                 federationMember);
             federatedDatacenter.setName(datacenterName);
             datacenters.add(federatedDatacenter);
         }
         return datacenters;
     }
-
 
 
     private FederatedHostSimple createHost() {
@@ -362,40 +503,40 @@ public class FederatedCloudSimulation {
         */
         FederatedHostSimple federatedHostSimple = new FederatedHostSimple(HOST_RAM, HOST_BW, HOST_STORAGE, peList);
         federatedHostSimple.enableStateHistory();
-        return  federatedHostSimple;
+        return federatedHostSimple;
 
     }
 
 
     private List<FederatedCloudletSimple> createCloudlets(Records.University university,
-                                                          FederationMember federationMember) {
+                                                          FederationMember federationMember, List<Records.University> universities) {
 
         int currentBotIndex = 0;
         final List<FederatedCloudletSimple> list = new ArrayList<>(university.BoTsPerUser());
 
-            for (int currentUser = 0; currentUser < university.numberOfUsers(); currentUser++) {
-                FederationMemberUser user = new FederationMemberUser(federationMember, (long) currentUser);
+        for (int currentUser = 0; currentUser < university.numberOfUsers(); currentUser++) {
+            FederationMemberUser user = new FederationMemberUser(federationMember, (long) currentUser);
 
 
-                for (int i = 0; i < university.BoTsPerUser(); i++) {
-                    int index = UNIVERSITIES_BASELINE.size() * currentBotIndex + university.id();
+            for (int i = 0; i < university.BoTsPerUser(); i++) {
+                int index = universities.size() * currentBotIndex + university.id();
 
-                    if (index >= bagOfTasksList.size()) {
-                        throw new RuntimeException(String.format("Não há BoTs suficientes para executar a simulação, " +
-                                "foram requisitados %d mas a lista de BoTs só contem %d itens.",
-                            index,
-                            bagOfTasksList.size()));
-                    }
-                    BoT currentBoT = bagOfTasksList.get(index);
-                    List<FederatedCloudletSimple> cloudlets = createAllCloudletsFromBoT(currentBoT, user);
-                    federationMember.addUser(user);
-                    list.addAll(cloudlets);
-
-                    currentBotIndex++;
+                if (index >= bagOfTasksList.size()) {
+                    throw new RuntimeException(String.format("Não há BoTs suficientes para executar a simulação, " +
+                            "foram requisitados %d mas a lista de BoTs só contem %d itens.",
+                        index,
+                        bagOfTasksList.size()));
                 }
-            }
+                BoT currentBoT = bagOfTasksList.get(index);
+                List<FederatedCloudletSimple> cloudlets = createAllCloudletsFromBoT(currentBoT, user);
+                federationMember.addUser(user);
+                list.addAll(cloudlets);
 
-            return list;
+                currentBotIndex++;
+            }
+        }
+
+        return list;
     }
 
     private List<FederatedCloudletSimple> createAllCloudletsFromBoT(BoT currentBoT, FederationMemberUser user) {
@@ -430,5 +571,16 @@ public class FederatedCloudSimulation {
         cloudlet.setUtilizationModelRam(utilizationRam);
         cloudlet.setUtilizationModelBw(new UtilizationModelFull());
         return cloudlet;
+    }
+
+    private String getLatencyValuesString(CloudFederation federation) {
+        StringBuilder latencyValues = new StringBuilder();
+        federation.getAllLatencyMaps().forEach((key, value) -> {
+            latencyValues.append("distâncias entre ").append(key.getAbbreviation()).append(" e outros datacenters: ");
+            value.forEach((key2, value2) -> latencyValues.append(key2.getAbbreviation()).append(": ").
+                append(value2).append("; "));
+            latencyValues.append('\n');
+        });
+        return latencyValues.toString();
     }
 }

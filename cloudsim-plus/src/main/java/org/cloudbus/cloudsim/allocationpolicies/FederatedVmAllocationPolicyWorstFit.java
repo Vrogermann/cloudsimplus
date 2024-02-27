@@ -39,70 +39,17 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 
-public class FederatedVmAllocationPolicyWorstFit extends VmAllocationPolicyAbstract {
+public class FederatedVmAllocationPolicyWorstFit extends FederatedVmAllocationPolicyAbstract {
 
     private final FederationMember owner;
 
     private final CloudFederation federation;
-
-    public BiFunction<FederatedDatacenter, Vm, Boolean> getDatacenterEligibleForVMFunction() {
-        return datacenterEligibleForVMFunction;
-    }
-
-    public void setDatacenterEligibleForVMFunction(BiFunction<FederatedDatacenter, Vm, Boolean> datacenterEligibleForVMFunction) {
-        this.datacenterEligibleForVMFunction = datacenterEligibleForVMFunction;
-    }
-
-    public Comparator<FederatedDatacenter> getDatacenterForVmComparator() {
-        return datacenterForVmComparator;
-    }
-
-    public void setDatacenterForVmComparator(Comparator<FederatedDatacenter> datacenterForVmComparator) {
-        this.datacenterForVmComparator = datacenterForVmComparator;
-    }
-
-    private BiFunction<FederatedDatacenter, Vm, Boolean> datacenterEligibleForVMFunction;
-
-    private Comparator<FederatedDatacenter> datacenterForVmComparator;
-
-    private BiFunction<Host, Vm, Boolean> hostEligibleForVMFunction;
-
-    public BiFunction<Host, Vm, Boolean> getHostEligibleForVMFunction() {
-        return hostEligibleForVMFunction;
-    }
-
-    public void setHostEligibleForVMFunction(BiFunction<Host, Vm, Boolean> hostEligibleForVMFunction) {
-        this.hostEligibleForVMFunction = hostEligibleForVMFunction;
-    }
-
-    public Comparator<Host> getHostForVmComparator() {
-        return hostForVmComparator;
-    }
-
-    public void setHostForVmComparator(Comparator<Host> hostForVmComparator) {
-        this.hostForVmComparator = hostForVmComparator;
-    }
-
-    private Comparator<Host> hostForVmComparator;
 
     public FederatedVmAllocationPolicyWorstFit(FederationMember owner,
                                                CloudFederation federation) {
         this.owner = owner;
         this.federation = federation;
     }
-
-    public FederatedVmAllocationPolicyWorstFit(FederationMember owner,
-                                               CloudFederation federation,
-                                               BiFunction<FederatedDatacenter, Vm, Boolean> datacenterEligibleForVMFunction,
-                                               Comparator<FederatedDatacenter> datacenterForVmComparator, BiFunction<Host, Vm, Boolean> hostEligibleForVMFunction, Comparator<Host> hostForVmComparator) {
-        this.owner = owner;
-        this.federation = federation;
-        this.datacenterEligibleForVMFunction = datacenterEligibleForVMFunction;
-        this.datacenterForVmComparator = datacenterForVmComparator;
-        this.hostEligibleForVMFunction = hostEligibleForVMFunction;
-        this.hostForVmComparator= hostForVmComparator;
-    }
-
 
     @Override
     public HostSuitability allocateHostForVm(final Vm vm) {
@@ -169,26 +116,6 @@ public class FederatedVmAllocationPolicyWorstFit extends VmAllocationPolicyAbstr
 
     }
 
-    private Optional<Host> getBestHostFromDatacenter(Vm vm, List<FederatedDatacenter> datacenters) {
-        if(!datacenters.isEmpty()){
-            FederatedDatacenter chosenDatacenter = datacenters.get(0);
-            List<Host> eligibleHosts = chosenDatacenter.getHostList().stream().filter(host -> hostEligibleForVMFunction.apply(host, vm)).
-                collect(Collectors.toList());
-            if(hostForVmComparator != null){
-                eligibleHosts.sort(hostForVmComparator);
-            }
-            if(!eligibleHosts.isEmpty()){
-                return Optional.ofNullable(eligibleHosts.get(0));
-            }
-        }
-        return Optional.empty();
-    }
-
-
-
-    public boolean defaultDatacenterEligibleForVMFunction(Datacenter datacenter, Vm vm){
-        return datacenter.getHostList().stream().anyMatch(host-> host.isSuitableForVm(vm));
-    }
 
 
 }

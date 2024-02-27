@@ -39,7 +39,7 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 
-public class FederatedVmAllocationPolicyDualLayerRoundRobin extends VmAllocationPolicyAbstract {
+public class FederatedVmAllocationPolicyDualLayerRoundRobin extends FederatedVmAllocationPolicyAbstract {
 
     private final FederationMember owner;
 

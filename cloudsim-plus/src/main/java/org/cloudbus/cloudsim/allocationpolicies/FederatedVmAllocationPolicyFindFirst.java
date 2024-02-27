@@ -37,7 +37,7 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 
-public class FederatedVmAllocationPolicyFindFirst extends VmAllocationPolicyAbstract {
+public class FederatedVmAllocationPolicyFindFirst extends FederatedVmAllocationPolicyAbstract {
 
     private final FederationMember owner;
 
@@ -57,6 +57,7 @@ public class FederatedVmAllocationPolicyFindFirst extends VmAllocationPolicyAbst
     @Override
     public HostSuitability allocateHostForVm(final Vm vm) {
         if (federation.getAllDatacenters().stream().allMatch(federatedDatacenter -> federatedDatacenter.getHostList().isEmpty())) {
+
             LOGGER.error(
                 "{}: {}: {} could not be allocated because there isn't any Host for Datacenter {}",
                 vm.getSimulation().clockStr(), getClass().getSimpleName(), vm, getDatacenter().getId());
