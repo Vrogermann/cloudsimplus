@@ -58,7 +58,7 @@ public class FederatedVmAllocationPolicyBestFit extends FederatedVmAllocationPol
         if (federation.getAllDatacenters().stream().
             allMatch(federatedDatacenter -> federatedDatacenter.getHostList().isEmpty())) {
             LOGGER.error(
-                "{}: {}: {} could not be allocated because there isn't any Host for Datacenter {}",
+                "{}: {}: {} não pode ser alocada pois não há nenhum host no datacenter {}",
                 vm.getSimulation().clockStr(), getClass().getSimpleName(), vm, getDatacenter().getId());
             return new HostSuitability("Datacenter has no host.");
         }
@@ -72,7 +72,7 @@ public class FederatedVmAllocationPolicyBestFit extends FederatedVmAllocationPol
             return allocateHostForVm(vm, optional.get());
         }
 
-        LOGGER.warn("{}: {}: No suitable host found for {} in {}", vm.getSimulation().clockStr(), getClass().getSimpleName(), vm, this.getDatacenter());
+        LOGGER.warn("{}: {}: Nenhum host disponível para alocar {} no {}", vm.getSimulation().clockStr(), getClass().getSimpleName(), vm, this.getDatacenter().getName());
         return new HostSuitability("No suitable host found");
     }
 

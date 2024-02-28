@@ -53,7 +53,7 @@ public class FederatedDatacenterBrokerSimple extends FederatedDatacenterBrokerAb
 
     public FederatedDatacenterBrokerSimple(final CloudSim simulation,
                                            FederationMember owner, CloudFederation federation) {
-        super(simulation, "broker_" + owner.getName().replace(" ", "_"));
+        super(simulation, "broker_" + owner.getName().replace(" ", "_"), owner);
         this.owner = owner;
         this.federation = federation;
     }

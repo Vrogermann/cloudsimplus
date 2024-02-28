@@ -41,6 +41,7 @@ import org.cloudbus.cloudsim.hosts.Host;
 import org.cloudbus.cloudsim.hosts.HostStateHistoryEntry;
 import org.cloudbus.cloudsim.resources.Pe;
 import org.cloudbus.cloudsim.resources.PeSimple;
+import org.cloudbus.cloudsim.schedulers.cloudlet.FederatedCloudletSchedulerTimeShared;
 import org.cloudbus.cloudsim.util.BotFileReader;
 import org.cloudbus.cloudsim.util.Conversion;
 import org.cloudbus.cloudsim.utilizationmodels.UtilizationModelConstant;
@@ -135,6 +136,7 @@ public class FederatedCloudSimulation {
     private static final long HOST_STORAGE = 10_000; //in Megabytes
     private static final int CLOUDLET_PES = 1;
     private static final double MIN_TIME_BETWEEN_EVENTS = 0.00001;
+    private static final boolean DATA_COLLECTION_ENABLED = true;
 
     private final CloudSim simulation;
 
@@ -178,7 +180,7 @@ public class FederatedCloudSimulation {
 
 
         simulation = new CloudSim(MIN_TIME_BETWEEN_EVENTS);
-        CloudFederation federation = new CloudFederation("Federal Universities of Brazil", 0L);
+        CloudFederation federation = new CloudFederation(simulation,"Federal Universities of Brazil", 0L);
         OptionalLong lineLimit = universities.stream().mapToLong(university -> universities.size() * ((long) university.numberOfUsers() * university.BoTsPerUser()) + university.id()).max();
         bagOfTasksList = BotFileReader.readBoTFile(BOT_CSV_FILE.getFile(), lineLimit.isPresent() ? lineLimit.getAsLong() : null);
         universities.forEach(university -> {
@@ -229,6 +231,15 @@ public class FederatedCloudSimulation {
         writeHostUsageDetailCsv(simulationInstanceResultPath, federation, false);
 
 
+        writeDatacenterDataCsv(simulationInstanceResultPath, federation, false);
+
+
+    }
+
+    private static void writeDatacenterDataCsv(Path simulationInstanceResultPath, CloudFederation federation, boolean showOnStdOut) {
+        if(!DATA_COLLECTION_ENABLED){
+            return;
+        }
         Path datacenterData = simulationInstanceResultPath.resolve("datacenterData.csv");
         try {
 
@@ -246,13 +257,16 @@ public class FederatedCloudSimulation {
             System.out.println("Erro ao escrever o arquivo " + datacenterData + " : " + e);
         }
 
-        // mostrar tabela também no stdout
-        new FederatedDatacenterHistoryTableBuilder(federation.getAllDatacenters()).build();
-
-
+        if(showOnStdOut){
+            new FederatedDatacenterHistoryTableBuilder(federation.getAllDatacenters()).build();
+        }
     }
 
     private static void writeHostUsageDetailCsv(Path simulationInstanceResultPath, CloudFederation federation, boolean showOnStdout) throws FileNotFoundException {
+        if(!DATA_COLLECTION_ENABLED){
+            return;
+        }
+
         // dados de execução de cada host de cada datacenter
         List<Records.HostAverageCpuUsage> hostAverageCpuUsageFullList = new ArrayList<>();
         federation.getAllDatacenters().stream().forEach(datacenter ->
@@ -346,6 +360,9 @@ public class FederatedCloudSimulation {
     private static void writeJobResultCsv(Path simulationInstanceResultPath,
                                           List<FederatedCloudletSimple> finishedFederatedCloudlets,
                                           boolean showOnStdOut) {
+        if(!DATA_COLLECTION_ENABLED){
+            return;
+        }
         Path jobData = simulationInstanceResultPath.resolve("jobData.csv");
         ArrayList<ConvertedBoT> botList = finishedFederatedCloudlets.stream().
             map(FederatedCloudletSimple::getBoT).distinct().collect(Collectors.toCollection(ArrayList::new));
@@ -372,6 +389,9 @@ public class FederatedCloudSimulation {
     }
 
     private static void writeTaskResultCsv(Path simulationInstanceResultPath, List<FederatedCloudletSimple> finishedFederatedCloudlets, boolean showOnStdOut) {
+        if(!DATA_COLLECTION_ENABLED){
+            return;
+        }
         Path taskData = simulationInstanceResultPath.resolve("taskData.csv");
         try {
 
@@ -395,6 +415,9 @@ public class FederatedCloudSimulation {
     }
 
     private static void writeUniversityDataCsv(List<Records.University> universities, Path simulationInstanceResultPath, boolean showOnStdOut) {
+        if(!DATA_COLLECTION_ENABLED){
+            return;
+        }
         Path universitiesData = simulationInstanceResultPath.resolve("universitiesData.csv");
 
         try {
@@ -456,8 +479,9 @@ public class FederatedCloudSimulation {
                 cloudlet.getBoT());
             vm.setRam(HOST_RAM / HOST_PES).
                 setBw(HOST_BW / HOST_PES).
-                setSize(HOST_STORAGE / HOST_PES)
+                setSize(HOST_STORAGE / HOST_PES).setCloudletScheduler(new FederatedCloudletSchedulerTimeShared())
                 .setSubmissionDelay(cloudlet.getSubmissionDelay());
+
             vm.setBotJobId(cloudlet.getBotJobId());
             vm.setBotTaskNumber(cloudlet.getBotTaskNumber());
             cloudlet.getBoT().addVm(vm);

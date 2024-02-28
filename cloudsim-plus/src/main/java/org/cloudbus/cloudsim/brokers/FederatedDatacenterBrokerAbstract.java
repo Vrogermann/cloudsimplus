@@ -8,14 +8,15 @@
 package org.cloudbus.cloudsim.brokers;
 
 import org.cloudbus.cloudsim.cloudlets.Cloudlet;
-import org.cloudbus.cloudsim.cloudlets.CloudletSimple;
 import org.cloudbus.cloudsim.cloudlets.FederatedCloudletSimple;
 import org.cloudbus.cloudsim.core.*;
 import org.cloudbus.cloudsim.core.events.CloudSimEvent;
 import org.cloudbus.cloudsim.core.events.SimEvent;
 import org.cloudbus.cloudsim.datacenters.Datacenter;
 import org.cloudbus.cloudsim.datacenters.TimeZoned;
+import org.cloudbus.cloudsim.federation.FederationMember;
 import org.cloudbus.cloudsim.schedulers.cloudlet.CloudletScheduler;
+import org.cloudbus.cloudsim.util.CloudSimTagsEnum;
 import org.cloudbus.cloudsim.utilizationmodels.UtilizationModel;
 import org.cloudbus.cloudsim.vms.FederatedVmSimple;
 import org.cloudbus.cloudsim.vms.Vm;
@@ -61,6 +62,8 @@ public abstract class FederatedDatacenterBrokerAbstract extends CloudSimEntity i
     private static final Function<Vm, Double> DEF_VM_DESTRUCTION_DELAY_FUNC = vm -> DEF_VM_DESTRUCTION_DELAY;
 
     private boolean selectClosestDatacenter;
+
+    private double freeHostExpectedTime = 0;
 
     /**
      * A List of registered event listeners for the onVmsCreatedListeners event.
@@ -128,6 +131,8 @@ public abstract class FederatedDatacenterBrokerAbstract extends CloudSimEntity i
      */
     private List<Datacenter> datacenterList;
 
+    private final FederationMember owner;
+
     private Cloudlet lastSubmittedCloudlet;
     private Vm lastSubmittedVm;
 
@@ -158,8 +163,9 @@ public abstract class FederatedDatacenterBrokerAbstract extends CloudSimEntity i
      * @param simulation the CloudSim instance that represents the simulation the Entity is related to
      * @param name the DatacenterBroker name
      */
-    public FederatedDatacenterBrokerAbstract(final CloudSim simulation, final String name) {
+    public FederatedDatacenterBrokerAbstract(final CloudSim simulation, final String name, FederationMember owner) {
         super(simulation);
+        this.owner = owner;
         if(!name.isEmpty()) {
             setName(name);
         }
@@ -458,8 +464,8 @@ public abstract class FederatedDatacenterBrokerAbstract extends CloudSimEntity i
         if (processCloudletEvents(evt) || processVmEvents(evt) || processGeneralEvents(evt)) {
             return;
         }
-
-        LOGGER.trace("{}: {}: Unknown event {} received.", getSimulation().clockStr(), this, evt.getTag());
+        CloudSimTagsEnum eventTag = CloudSimTagsEnum.findByValue(evt.getTag());
+        LOGGER.trace("{}: {}: Evento do tipo  {} recebido de {} ignorado ou processado com erro.", getSimulation().clockStr(), getName(), eventTag, evt.getSource().getName());
     }
 
     private boolean processCloudletEvents(final SimEvent evt) {
@@ -656,7 +662,7 @@ public abstract class FederatedDatacenterBrokerAbstract extends CloudSimEntity i
                 vmFailedList.add(vm);
                 LOGGER.warn("{}: {}: {} has been moved to the failed list because creation retry is not enabled.", getSimulation().clockStr(), getName(), vm);
             }
-
+            processVmCreationFailure(vm, owner.getFederation().getWaitTimeBeforeResubmitFailedVms());
             vm.notifyOnCreationFailureListeners(lastSelectedDc);
         }
 
@@ -678,40 +684,12 @@ public abstract class FederatedDatacenterBrokerAbstract extends CloudSimEntity i
         }
     }
 
-    /**
-     * After the response (ack) of all VM creation requests were received
-     * but not all VMs could be created (what means some
-     * acks informed about Vm creation failures), try to find
-     * another Datacenter to request the creation of the VMs
-     * in the waiting list.
-     */
-    private void requestCreationOfWaitingVmsToFallbackDatacenter() {
-        this.lastSelectedDc = Datacenter.NULL;
-        if (vmWaitingList.isEmpty() || requestDatacenterToCreateWaitingVms(false, true)) {
-            return;
-        }
-
-        final String msg =
-            "{}: {}: {} of the requested {} VMs couldn't be created because suitable Hosts weren't found in any available Datacenter."
-            + (vmExecList.isEmpty() && !isRetryFailedVms() ? " Shutting broker down..." : "");
-        LOGGER.error(msg, getSimulation().clockStr(), getName(), vmWaitingList.size(), getVmsNumber());
-
-        /* If it gets here, it means that all datacenters were already queried and not all VMs could be created. */
-        if (!vmWaitingList.isEmpty()) {
-            processVmCreationFailure();
-            return;
-        }
-
-        requestDatacentersToCreateWaitingCloudlets();
+    private void processVmCreationFailure(FederatedVmSimple vm, double delay) {
+        send(vm.getLastTriedDatacenter(), delay, CloudSimTags.VM_CREATE_ACK, vm);
     }
 
-    private void processVmCreationFailure() {
-        if (isRetryFailedVms()) {
-            lastSelectedDc = datacenterList.get(0);
-            this.vmCreationRetrySent = true;
-            schedule(failedVmsRetryDelay, CloudSimTags.VM_CREATE_RETRY);
-        } else shutdown();
-    }
+
+
 
     /**
      * Request the creation of {@link #getVmWaitingList() waiting VMs} in some Datacenter.
@@ -973,6 +951,12 @@ public abstract class FederatedDatacenterBrokerAbstract extends CloudSimEntity i
                 getSimulation().clockStr(), getName(), vm, datacenter.getName(),
                 fallbackMsg, vm.getSubmissionDelay());
     }
+    private void logVmCreationRetryRequest(final Vm vm) {
+            LOGGER.info(
+                "{}: {}: broker irá reenviar {} para o datacenter {} após {} segundos",
+                getSimulation().clockStr(), getName(), vm, vm.getLastTriedDatacenter().getName(), failedVmsRetryDelay);
+
+    }
 
     /**
      * <p>Request Datacenters to create the Cloudlets in the
@@ -1051,11 +1035,11 @@ public abstract class FederatedDatacenterBrokerAbstract extends CloudSimEntity i
     private void logCloudletCreationRequest(final Cloudlet cloudlet) {
         final String delayMsg =
             cloudlet.getSubmissionDelay() > 0 ?
-                String.format(" with a requested delay of %.0f seconds", cloudlet.getSubmissionDelay()) :
+                String.format(" após aguardar o atraso configurado de %.0f segundos", cloudlet.getSubmissionDelay()) :
                 "";
         FederatedCloudletSimple federatedCloudlet = (FederatedCloudletSimple) cloudlet;
         LOGGER.info(
-            "{}: {}: Sending Cloudlet {} to {} in {}{}.",
+            "{}: {}: enviando cloudlet {} para processamento em {} no {}{}.",
             getSimulation().clockStr(), getName(),federatedCloudlet.getBotJobId() + "/" + federatedCloudlet.getBotTaskNumber() ,
             lastSelectedVm, lastSelectedVm.getHost(), delayMsg);
     }

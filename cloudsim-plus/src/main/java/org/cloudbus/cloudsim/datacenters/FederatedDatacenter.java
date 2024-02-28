@@ -27,6 +27,7 @@ import org.cloudbus.cloudsim.power.models.PowerModelDatacenterSimple;
 import org.cloudbus.cloudsim.resources.DatacenterStorage;
 import org.cloudbus.cloudsim.schedulers.cloudlet.CloudletScheduler;
 import org.cloudbus.cloudsim.util.BytesConversion;
+import org.cloudbus.cloudsim.util.CloudSimTagsEnum;
 import org.cloudbus.cloudsim.util.MathUtil;
 import org.cloudbus.cloudsim.util.TimeUtil;
 import org.cloudbus.cloudsim.vms.FederatedVmSimple;
@@ -217,8 +218,8 @@ public class FederatedDatacenter extends CloudSimEntity implements Datacenter {
         if (processCloudletEvents(evt) || processVmEvents(evt) || processNetworkEvents(evt) || processHostEvents(evt) || processSimulationEnd(evt)) {
             return;
         }
-
-        LOGGER.trace("{}: {}: Unknown event {} received.", getSimulation().clockStr(), this, evt.getTag());
+        CloudSimTagsEnum eventTag = CloudSimTagsEnum.findByValue(evt.getTag());
+        LOGGER.trace("{}: {}: Evento do tipo  {} recebido de {} ignorado ou processado com erro.", getSimulation().clockStr(), getName(), eventTag, evt.getSource().getName());
     }
 
     private boolean processSimulationEnd(SimEvent evt) {
@@ -383,7 +384,7 @@ public class FederatedDatacenter extends CloudSimEntity implements Datacenter {
         try {
             cloudlet = (Cloudlet) evt.getData();
         } catch (ClassCastException e) {
-            LOGGER.error("{}: Error in processing Cloudlet: {}", super.getName(), e.getMessage());
+            LOGGER.error("{}: Erro ao processar cloudlet: {}", super.getName(), e.getMessage());
             return false;
         }
 

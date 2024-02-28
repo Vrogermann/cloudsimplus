@@ -202,7 +202,7 @@ public abstract class FederatedVmAllocationPolicyAbstract implements VmAllocatio
         }
 
         LOGGER.info(
-            "{}: {}: {} more {} allocated to {}: new capacity is {}. Current resource usage is {}%",
+            "{}: {}: {} mais {} foram alocados para o {}: a nova capacidade é {}. O uso percentual de cpu é {}%",
             scaling.getVm().getSimulation().clockStr(),
             scaling.getClass().getSimpleName(),
             (long) extraAmountToAllocate, resourceClass.getSimpleName(),
@@ -216,7 +216,7 @@ public abstract class FederatedVmAllocationPolicyAbstract implements VmAllocatio
         final ResourceManageable hostResource = scaling.getVm().getHost().getResource(resourceClass);
         final double extraAmountToAllocate = scaling.getResourceAmountToScale();
         LOGGER.warn(
-            "{}: {}: {} requested more {} of {} capacity but the {} has just {} of available {}",
+            "{}: {}: {} solicitou mais {} de {} capacidade mas o {} possui somento {} disponível {}",
             scaling.getVm().getSimulation().clockStr(),
             scaling.getClass().getSimpleName(),
             scaling.getVm(), (long) extraAmountToAllocate,
@@ -239,7 +239,7 @@ public abstract class FederatedVmAllocationPolicyAbstract implements VmAllocatio
         final double newTotalVmResource = vmResource.getCapacity() - amountToDeallocate;
         if (!provisioner.allocateResourceForVm(scaling.getVm(), newTotalVmResource)) {
             LOGGER.error(
-                "{}: {}: {} requested to reduce {} capacity by {} but an unexpected error occurred and the resource was not resized",
+                "{}: {}: {} solicitou reduzir a capacidade de {} em {} mas um erro inesperado impediu a alteração.",
                 scaling.getVm().getSimulation().clockStr(),
                 scaling.getClass().getSimpleName(),
                 scaling.getVm(),
@@ -267,13 +267,13 @@ public abstract class FederatedVmAllocationPolicyAbstract implements VmAllocatio
     public HostSuitability allocateHostForVm(final Vm vm) {
         if (getHostList().isEmpty()) {
             LOGGER.error(
-                "{}: {}: {} could not be allocated because there isn't any Host for Datacenter {}",
+                "{}: {}: {} não pode ser alocada pois não há nenhum host no datacenter {}",
                 vm.getSimulation().clockStr(), getClass().getSimpleName(), vm, getDatacenter().getId());
             return new HostSuitability("Datacenter has no host.");
         }
 
         if (vm.isCreated()) {
-            return new HostSuitability("VM is already created");
+            return new HostSuitability("VM já foi criada.");
         }
 
         final Optional<Host> optional = findHostForVm(vm);
@@ -281,8 +281,8 @@ public abstract class FederatedVmAllocationPolicyAbstract implements VmAllocatio
             return allocateHostForVm(vm, optional.get());
         }
 
-        LOGGER.warn("{}: {}: No suitable host found for {} in {}", vm.getSimulation().clockStr(), getClass().getSimpleName(), vm, datacenter);
-        return new HostSuitability("No suitable host found");
+        LOGGER.warn("{}: {}: Nenhum host capaz de hospedar a {} foi encontrado em {}", vm.getSimulation().clockStr(), getClass().getSimpleName(), vm, datacenter.getName());
+        return new HostSuitability("Nenhum host consegue hospedar a VM neste instante.");
     }
 
     @Override
@@ -321,11 +321,11 @@ public abstract class FederatedVmAllocationPolicyAbstract implements VmAllocatio
         final HostSuitability suitability = host.createVm(vm);
         if (suitability.fully()) {
             LOGGER.info(
-                "{}: {}: {} has been allocated to {}",
+                "{}: {}: {} foi alocado em {}",
                 vm.getSimulation().clockStr(), getClass().getSimpleName(), vm, host);
         } else {
             LOGGER.error(
-                "{}: {} Creation of {} on {} failed due to {}.",
+                "{}: {} A criação de {} em {} falhou por {}.",
                 vm.getSimulation().clockStr(), getClass().getSimpleName(), vm, host, suitability);
         }
 

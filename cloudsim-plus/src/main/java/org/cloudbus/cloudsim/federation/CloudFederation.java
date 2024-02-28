@@ -1,7 +1,10 @@
 package org.cloudbus.cloudsim.federation;
 
 import org.apache.lucene.util.SloppyMath;
+import org.cloudbus.cloudsim.core.Simulation;
 import org.cloudbus.cloudsim.datacenters.FederatedDatacenter;
+import org.cloudbus.cloudsim.schedulers.cloudlet.FederatedCloudletSchedulerTimeShared;
+import org.cloudbus.cloudsim.vms.FederatedVmSimple;
 import org.cloudsimplus.util.Records;
 
 import java.util.*;
@@ -10,6 +13,10 @@ import java.util.*;
 Represents a Cloud federation, where different organizations can share datacenters
  */
 public class CloudFederation {
+    private double timeToResubmitFailedVms;
+
+    private final Simulation simulation;
+
     public Set<FederationMember> getMembers() {
         return members;
     }
@@ -29,11 +36,13 @@ public class CloudFederation {
     private String name;
     private Long id;
 
-    public CloudFederation( String name, Long id) {
+    public CloudFederation(Simulation simulation, String name, Long id) {
+        this.simulation = simulation;
         this.name = name;
         this.id = id;
         this.members = new HashSet<>();
         memberToMemberLatencyMap = new HashMap<>();
+        timeToResubmitFailedVms = 0;
     }
 
     public String getName() {
@@ -113,5 +122,19 @@ public class CloudFederation {
         return true;
     }
 
+    private double recalculateTimeToRetryFailedVms() {
+        double waitTime = getAllDatacenters().stream().flatMap(dc -> dc.getHostList().stream()).flatMap(host ->
+            host.getVmList().stream()).mapToDouble(vm ->
+            ((FederatedCloudletSchedulerTimeShared) vm.getCloudletScheduler()).getCloudletEstimatedFinishTime()).min().orElse(simulation.getMinTimeBetweenEvents());
+        timeToResubmitFailedVms= simulation.clock() + waitTime;
+        return waitTime;
+    }
 
+    public double getWaitTimeBeforeResubmitFailedVms() {
+        if(simulation.clock() < timeToResubmitFailedVms) {
+            return timeToResubmitFailedVms - simulation.clock();
+        }
+        return recalculateTimeToRetryFailedVms();
+
+    }
 }

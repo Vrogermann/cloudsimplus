@@ -1,8 +1,11 @@
 package org.cloudbus.cloudsim.vms;
 
+import org.cloudbus.cloudsim.cloudlets.FederatedCloudletSimple;
 import org.cloudbus.cloudsim.federation.FederationMemberUser;
 import org.cloudbus.cloudsim.schedulers.cloudlet.CloudletScheduler;
 import org.cloudsimplus.traces.ufpel.ConvertedBoT;
+
+import java.util.Objects;
 
 public class FederatedVmSimple extends VmSimple implements Vm{
 
@@ -10,6 +13,10 @@ public class FederatedVmSimple extends VmSimple implements Vm{
 
     public ConvertedBoT getBoT() {
         return boT;
+    }
+
+    public FederatedCloudletSimple getTaskCloudlet(){
+        return boT.getTasks().stream().filter(federatedCloudletSimple -> Objects.equals(federatedCloudletSimple.getBotTaskNumber(), getBotTaskNumber())).findFirst().orElse(null);
     }
 
     private final ConvertedBoT boT;
@@ -69,7 +76,7 @@ public class FederatedVmSimple extends VmSimple implements Vm{
 
     @Override
     public String toString(){
-        return "VM "+this.vmOwner.getFederationMember().getAbbreviation() + "/" + "from user " +this.vmOwner.getId() + " /bot id "+ boT.getOriginalBoT().getJobId() + " /task index " + botTaskNumber;
+        return "VM "+this.vmOwner.getFederationMember().getAbbreviation() + "/" + "do usuário " +this.vmOwner.getId() + "/bot id "+ boT.getOriginalBoT().getJobId() + "/task index " + botTaskNumber;
     }
 
 }
