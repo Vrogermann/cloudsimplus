@@ -72,7 +72,7 @@ import static org.cloudbus.cloudsim.util.MathUtil.positive;
 public class FederatedCloudSimulation {
     private static final URL BOT_CSV_FILE = FederatedCloudSimulation.class.getClassLoader().getResource("workload/ufpel/outputconverted.csv");
 
-    private static final Path RESULTS_LOCATION = Paths.get("X:\\tcc\\cloudsimplus\\cloudsim-plus-examples\\src\\main\\resources\\workload\\ufpel\\results");
+    private static final Path RESULTS_LOCATION = Paths.get("cloudsim-plus-examples/src/main/resources/workload/ufpel/results");
 
 
     private static final List<Records.University> UNIVERSITIES_BASELINE =
@@ -135,7 +135,7 @@ public class FederatedCloudSimulation {
     private static final long HOST_BW = 10_000; //in Megabits/s
     private static final long HOST_STORAGE = 10_000; //in Megabytes
     private static final int CLOUDLET_PES = 1;
-    private static final double MIN_TIME_BETWEEN_EVENTS = 0.01;
+    private static final double MIN_TIME_BETWEEN_EVENTS = 0.00001;
     private static final boolean DATA_COLLECTION_ENABLED = true;
 
     private final CloudSim simulation;
