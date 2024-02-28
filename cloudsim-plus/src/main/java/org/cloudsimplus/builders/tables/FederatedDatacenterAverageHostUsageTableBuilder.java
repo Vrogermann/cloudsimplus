@@ -49,7 +49,7 @@ public class FederatedDatacenterAverageHostUsageTableBuilder extends TableBuilde
 
         addColumnDataFunction(getTable().addColumn("Datacenter"), (usage)-> usage.host().getDatacenter().getName());
         addColumnDataFunction(getTable().addColumn("Host Name"), (usage)-> ((FederatedHostSimple) usage.host()).getName());
-        addColumnDataFunction(getTable().addColumn("Average cpu usage"), (usage)-> (usage.averageCpuUsage()));
+        addColumnDataFunction(getTable().addColumn("Average cpu usage"), (usage)-> (String.format("%.2f", usage.averageCpuUsage())).replace(',','.'));
 
     }
 }

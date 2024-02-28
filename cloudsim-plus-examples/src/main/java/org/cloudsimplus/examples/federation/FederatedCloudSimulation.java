@@ -72,49 +72,49 @@ import static org.cloudbus.cloudsim.util.MathUtil.positive;
 public class FederatedCloudSimulation {
     private static final URL BOT_CSV_FILE = FederatedCloudSimulation.class.getClassLoader().getResource("workload/ufpel/outputconverted.csv");
 
-    private static final Path RESULTS_LOCATION = Paths.get("C:\\Users\\victo\\Documents\\ufpel\\cloudsimplus\\cloudsim-plus-examples\\src\\main\\resources\\workload\\ufpel\\results");
+    private static final Path RESULTS_LOCATION = Paths.get("X:\\tcc\\cloudsimplus\\cloudsim-plus-examples\\src\\main\\resources\\workload\\ufpel\\results");
 
 
     private static final List<Records.University> UNIVERSITIES_BASELINE =
         Arrays.asList(new Records.University("Universidade Federal do Rio de Janeiro",
                 new Records.Coordinates(-22.862312050419078, -43.22317329523859),
-                0, 1, 10, 10, 10,
+                0, 1, 10, 5, 10,
                 "UFRJ"),
             new Records.University("Universidade Federal de São Paulo",
                 new Records.Coordinates(-23.598773, -46.643422),
-                1, 1, 10, 10, 10,
+                1, 1, 10, 5, 10,
                 "UNIFESP"),
             new Records.University("Universidade Federal de Minas Gerais",
                 new Records.Coordinates(-19.870581085957383, -43.967746630914675),
-                2, 1, 10, 10, 10,
+                2, 1, 10, 5, 10,
                 "UFMG"),
             new Records.University("Universidade Federal do Rio Grande Do Sul",
                 new Records.Coordinates(-30.033907564026826, -51.21900538654607),
-                3, 1, 10, 10, 10,
+                3, 1, 10, 5, 10,
                 "UFRGS"),
             new Records.University("Universidade Federal de Santa Catarina",
                 new Records.Coordinates(-26.23485949891767, -48.88401144670387),
-                4, 1, 10, 10, 10,
+                4, 1, 10, 5, 10,
                 "UFSC"),
             new Records.University("Universidade Federal de São Carlos",
-                new Records.Coordinates(-21.983975081254595, -47.88152180795202),
-                5, 1, 10, 10, 10,
+                new Records.Coordinates(-21.983975081254595, -47.88152180795102),
+                5, 1, 10, 5, 10,
                 "UFSCar"),
             new Records.University("Universidade Federal do Paraná",
                 new Records.Coordinates(-25.426871793799748, -49.26175798375143),
-                6, 1, 10, 10, 10,
+                6, 1, 10, 5, 10,
                 "UFPR"),
             new Records.University("Universidade Federal do Pernambuco",
                 new Records.Coordinates(-8.01710961795856, -34.950500616736285),
-                7, 1, 10, 10, 10,
+                7, 1, 10, 5, 10,
                 "UFPE"),
             new Records.University("Universidade Federal da Bahia",
                 new Records.Coordinates(-13.00365838049915, -38.509963739614044),
-                8, 1, 10, 10, 10,
+                8, 1, 10, 5, 10,
                 "UFBA"),
             new Records.University("Universidade Federal de Juiz de Fora",
                 new Records.Coordinates(-21.776859501069005, -43.36904141993076),
-                9, 1, 10, 10, 10,
+                9, 1, 10, 5, 10,
                 "UFJF"));
 
     private static final List<Records.ExecutionPlan> simulationExecutionPlanList =
@@ -135,7 +135,7 @@ public class FederatedCloudSimulation {
     private static final long HOST_BW = 10_000; //in Megabits/s
     private static final long HOST_STORAGE = 10_000; //in Megabytes
     private static final int CLOUDLET_PES = 1;
-    private static final double MIN_TIME_BETWEEN_EVENTS = 0.00001;
+    private static final double MIN_TIME_BETWEEN_EVENTS = 0.01;
     private static final boolean DATA_COLLECTION_ENABLED = true;
 
     private final CloudSim simulation;
@@ -176,7 +176,7 @@ public class FederatedCloudSimulation {
 
 
 
-        Log.setLevel(Level.ALL);
+        Log.setLevel(Level.INFO);
 
 
         simulation = new CloudSim(MIN_TIME_BETWEEN_EVENTS);
@@ -477,8 +477,8 @@ public class FederatedCloudSimulation {
                 1,
                 cloudlet.getOwner(),
                 cloudlet.getBoT());
-            vm.setRam(HOST_RAM / HOST_PES).
-                setBw(HOST_BW / HOST_PES).
+                vm.setRam(Math.min(HOST_RAM/4, (long) (positive(cloudlet.getBoT().getOriginalBoT().getTaskRamUsage(), Conversion.HUNDRED_PERCENT) * HOST_RAM)))
+                .setBw(HOST_BW / HOST_PES).
                 setSize(HOST_STORAGE / HOST_PES).setCloudletScheduler(new FederatedCloudletSchedulerTimeShared())
                 .setSubmissionDelay(cloudlet.getSubmissionDelay());
 

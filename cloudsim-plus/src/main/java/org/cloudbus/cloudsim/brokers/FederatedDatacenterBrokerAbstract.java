@@ -662,7 +662,7 @@ public abstract class FederatedDatacenterBrokerAbstract extends CloudSimEntity i
                 vmFailedList.add(vm);
                 LOGGER.warn("{}: {}: {} has been moved to the failed list because creation retry is not enabled.", getSimulation().clockStr(), getName(), vm);
             }
-            processVmCreationFailure(vm, owner.getFederation().getWaitTimeBeforeResubmitFailedVms());
+            processVmCreationFailure(vm, owner.getFederation().getWaitTimeBeforeResubmitFailedVms() + failedVmsRetryDelay);
             vm.notifyOnCreationFailureListeners(lastSelectedDc);
         }
 
@@ -734,22 +734,6 @@ public abstract class FederatedDatacenterBrokerAbstract extends CloudSimEntity i
      * @param vm id of the Vm that succeeded to be created inside the Datacenter
      */
     private void processSuccessVmCreationInDatacenter(final Vm vm) {
-        if(vm instanceof VmGroup){
-            int createdVms = 0;
-            final VmGroup vmGroup = (VmGroup)vm;
-            for (final Vm nextVm : vmGroup.getVmList()) {
-                if (nextVm.isCreated()) {
-                    processSuccessVmCreationInDatacenter(nextVm);
-                    createdVms++;
-                }
-            }
-
-            if(createdVms == vmGroup.size()){
-                vmWaitingList.remove(vmGroup);
-            }
-
-            return;
-        }
 
         FederatedVmSimple federatedVmSimple = (FederatedVmSimple) vm;
         // selects a VM for the given Cloudlet
@@ -787,7 +771,7 @@ public abstract class FederatedDatacenterBrokerAbstract extends CloudSimEntity i
         final Cloudlet cloudlet = (Cloudlet) evt.getData();
         cloudletsFinishedList.add(cloudlet);
         Vm vm = ((VmSimple) cloudlet.getVm()).addExpectedFreePesNumber(cloudlet.getNumberOfPes());
-        LOGGER.info("{}: {}: {} finished in {} and returned to broker.", getSimulation().clockStr(), getName(), cloudlet, cloudlet.getVm());
+        LOGGER.info("{}: {}: {} terminou de executar {} e notificou o broker.", getSimulation().clockStr(), getName(), cloudlet, cloudlet.getVm());
         LOGGER.info("{}: {}: Requesting {} destruction.", getSimulation().clockStr(), getName(), vm);
         sendNow(getDatacenter(vm), CloudSimTags.VM_DESTROY, vm);
         return true;

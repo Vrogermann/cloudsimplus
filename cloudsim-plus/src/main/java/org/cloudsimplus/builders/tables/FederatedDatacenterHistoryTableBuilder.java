@@ -105,7 +105,7 @@ public class FederatedDatacenterHistoryTableBuilder extends TableBuilderAbstract
                 }
 
                 if (totalTime > 0) {
-                    return totalUsage / totalTime;
+                    return String.format("%.2f",totalUsage / totalTime).replace(',','.');
                 } else {
                     return 0.0; // Evita divisão por zero
                 }
