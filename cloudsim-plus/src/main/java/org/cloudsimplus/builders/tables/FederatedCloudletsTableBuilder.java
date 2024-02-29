@@ -85,7 +85,7 @@ public class FederatedCloudletsTableBuilder extends TableBuilderAbstract<Federat
             (FederatedCloudletSimple::getBotTaskNumber));
 
         addColumnDataFunction(getTable().addColumn("BoT Task delay"),
-            (cloudlet-> cloudlet.getBoT().getOriginalBoT().getJobCreationTime()));
+            (cloudlet-> cloudlet.getBoT().getOriginalBoT().getJobStartTime()));
 
         addColumnDataFunction(getTable().addColumn("Cloudlet"),
             Identifiable::getId);
@@ -132,11 +132,14 @@ public class FederatedCloudletsTableBuilder extends TableBuilderAbstract<Federat
         col = getTable().addColumn("Vm Creation time");
         addColumnDataFunction(col, cl -> cl.getVm().getCreationTime());
 
+        col = getTable().addColumn("Vm idle time");
+        addColumnDataFunction(col, cl ->  cl.getVm().getCreationTime() -  cl.getBoT().getOriginalBoT().getJobStartTime());
+
         col = getTable().addColumn("Vm Destruction time");
         addColumnDataFunction(col, cl -> cl.getVm().getStopTime());
 
         col = getTable().addColumn("Vm lifetime");
-        addColumnDataFunction(col, cl -> cl.getVm().getStopTime() - cl.getVm().getCreationTime() );
+        addColumnDataFunction(col, cl -> cl.getVm().getStopTime() - cl.getVm().getCreationTime());
 
         col = getTable().addColumn("Slowdown");
         addColumnDataFunction(col, cl ->   (cl.getVm().getStopTime() - cl.getVm().getCreationTime())/ cl.getActualCpuTime());

@@ -23,7 +23,6 @@
  */
 package org.cloudbus.cloudsim.allocationpolicies;
 
-import org.cloudbus.cloudsim.datacenters.Datacenter;
 import org.cloudbus.cloudsim.datacenters.FederatedDatacenter;
 import org.cloudbus.cloudsim.federation.CloudFederation;
 import org.cloudbus.cloudsim.federation.FederationMember;
@@ -33,11 +32,9 @@ import org.cloudbus.cloudsim.vms.FederatedVmSimple;
 import org.cloudbus.cloudsim.vms.Vm;
 
 import java.util.*;
-import java.util.function.BiFunction;
-import java.util.stream.Collectors;
 
 
-public class FederatedVmAllocationPolicyFindFirst extends FederatedVmAllocationPolicyAbstract {
+public class FederatedVmAllocationPolicyFirstFit extends FederatedVmAllocationPolicyAbstract {
 
     private final FederationMember owner;
 
@@ -46,8 +43,8 @@ public class FederatedVmAllocationPolicyFindFirst extends FederatedVmAllocationP
 
 
 
-    public FederatedVmAllocationPolicyFindFirst(FederationMember owner,
-                                                CloudFederation federation) {
+    public FederatedVmAllocationPolicyFirstFit(FederationMember owner,
+                                               CloudFederation federation) {
         this.owner = owner;
         this.federation = federation;
     }

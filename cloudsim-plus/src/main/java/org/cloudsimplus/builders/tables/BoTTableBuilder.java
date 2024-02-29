@@ -96,13 +96,12 @@ public class BoTTableBuilder extends TableBuilderAbstract<ConvertedBoT> {
         addColumnDataFunction(getTable().addColumn("Job Slowdown"),
             (bot -> {
                 double lastVmFinishedAt = bot.getVms().stream().mapToDouble(FederatedVmSimple::getStopTime).max().orElse(Double.NaN);
-                double firstVmStartedAt = bot.getVms().stream().mapToDouble(FederatedVmSimple::getArrivedTime).max().orElse(Double.NaN);
+                double firstVmStartedAt = bot.getOriginalBoT().getJobStartTime();
                 double totalJobTime = lastVmFinishedAt - firstVmStartedAt;
                 BoT originalBoT = bot.getOriginalBoT();
                 double taskLength = originalBoT.getTaskLength();
-                long numberOfTasks = originalBoT.getNumberOfTasks();
                 double capacity = bot.getVms().get(0).getHost().getPeList().get(0).getCapacity();
-                double optimalExecutionTime = (taskLength * numberOfTasks) / (capacity * numberOfTasks);
+                double optimalExecutionTime = taskLength/capacity ;
 
 
                 return totalJobTime / optimalExecutionTime;

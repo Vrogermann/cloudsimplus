@@ -33,6 +33,9 @@ import org.cloudbus.cloudsim.cloudlets.FederatedCloudletSimple;
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.datacenters.Datacenter;
 import org.cloudbus.cloudsim.datacenters.FederatedDatacenter;
+import org.cloudbus.cloudsim.distributions.GammaDistr;
+import org.cloudbus.cloudsim.distributions.LognormalDistr;
+import org.cloudbus.cloudsim.distributions.UniformDistr;
 import org.cloudbus.cloudsim.federation.CloudFederation;
 import org.cloudbus.cloudsim.federation.FederationMember;
 import org.cloudbus.cloudsim.federation.FederationMemberUser;
@@ -78,48 +81,48 @@ public class FederatedCloudSimulation {
     private static final List<Records.University> UNIVERSITIES_BASELINE =
         Arrays.asList(new Records.University("Universidade Federal do Rio de Janeiro",
                 new Records.Coordinates(-22.862312050419078, -43.22317329523859),
-                0, 1, 10, 5, 10,
+                0, 1, 10, 10, 10,
                 "UFRJ"),
             new Records.University("Universidade Federal de São Paulo",
                 new Records.Coordinates(-23.598773, -46.643422),
-                1, 1, 10, 5, 10,
+                1, 1, 10, 10, 10,
                 "UNIFESP"),
             new Records.University("Universidade Federal de Minas Gerais",
                 new Records.Coordinates(-19.870581085957383, -43.967746630914675),
-                2, 1, 10, 5, 10,
+                2, 1, 10, 10, 10,
                 "UFMG"),
             new Records.University("Universidade Federal do Rio Grande Do Sul",
                 new Records.Coordinates(-30.033907564026826, -51.21900538654607),
-                3, 1, 10, 5, 10,
+                3, 1, 10, 10, 10,
                 "UFRGS"),
             new Records.University("Universidade Federal de Santa Catarina",
                 new Records.Coordinates(-26.23485949891767, -48.88401144670387),
-                4, 1, 10, 5, 10,
+                4, 1, 10, 10, 10,
                 "UFSC"),
             new Records.University("Universidade Federal de São Carlos",
                 new Records.Coordinates(-21.983975081254595, -47.88152180795102),
-                5, 1, 10, 5, 10,
+                5, 1, 10, 10, 10,
                 "UFSCar"),
             new Records.University("Universidade Federal do Paraná",
                 new Records.Coordinates(-25.426871793799748, -49.26175798375143),
-                6, 1, 10, 5, 10,
+                6, 1, 10, 10, 10,
                 "UFPR"),
             new Records.University("Universidade Federal do Pernambuco",
                 new Records.Coordinates(-8.01710961795856, -34.950500616736285),
-                7, 1, 10, 5, 10,
+                7, 1, 10, 10, 10,
                 "UFPE"),
             new Records.University("Universidade Federal da Bahia",
                 new Records.Coordinates(-13.00365838049915, -38.509963739614044),
-                8, 1, 10, 5, 10,
+                8, 1, 10, 10, 10,
                 "UFBA"),
             new Records.University("Universidade Federal de Juiz de Fora",
                 new Records.Coordinates(-21.776859501069005, -43.36904141993076),
-                9, 1, 10, 5, 10,
+                9, 1, 10, 10, 10,
                 "UFJF"));
 
     private static final List<Records.ExecutionPlan> simulationExecutionPlanList =
         List.of(new Records.ExecutionPlan(UNIVERSITIES_BASELINE, "UNIVERSITIES_BASELINE",
-                FederatedVmAllocationPolicyFindFirst.class),
+                FederatedVmAllocationPolicyFirstFit.class),
             new Records.ExecutionPlan(UNIVERSITIES_BASELINE, "UNIVERSITIES_BASELINE",
                 FederatedVmAllocationPolicyBestFit.class),
             new Records.ExecutionPlan(UNIVERSITIES_BASELINE, "UNIVERSITIES_BASELINE",
@@ -127,7 +130,13 @@ public class FederatedCloudSimulation {
             new Records.ExecutionPlan(UNIVERSITIES_BASELINE, "UNIVERSITIES_BASELINE",
                 FederatedVmAllocationPolicyDualLayerRoundRobin.class),
             new Records.ExecutionPlan(UNIVERSITIES_BASELINE, "UNIVERSITIES_BASELINE",
-                FederatedVmAllocationPolicySingleLayerRoundRobin.class));
+                FederatedVmAllocationPolicySingleLayerRoundRobin.class),
+            new Records.ExecutionPlan(UNIVERSITIES_BASELINE, "UNIVERSITIES_BASELINE",
+                FederatedVmAllocationPolicyLocalFirstRandom.class),
+            new Records.ExecutionPlan(UNIVERSITIES_BASELINE, "UNIVERSITIES_BASELINE",
+                FederatedVmAllocationPolicyRandom.class));
+    private static final List<Records.ExecutionPlan> singleSimulation = Collections.singletonList(new Records.ExecutionPlan(UNIVERSITIES_BASELINE, "UNIVERSITIES_BASELINE",
+        FederatedVmAllocationPolicyRandom.class));
 
     private static final int HOST_PES = 4;
     private static final int HOST_MIPS = 3450; // from 7zip sandy bridge benchmark on https://www.7-cpu.com/
@@ -147,7 +156,7 @@ public class FederatedCloudSimulation {
             format(DateTimeFormatter.ISO_LOCAL_DATE_TIME).replace(':', '-') + "/");
         baseResultPath.toFile().mkdirs();
 
-        simulationExecutionPlanList.forEach(executionPlan -> {
+        singleSimulation.forEach(executionPlan -> {
             try {
                 new FederatedCloudSimulation(executionPlan.universityList(), executionPlan.allocationPolicy(),
                     baseResultPath.resolve(executionPlan.name() + "/" + executionPlan.allocationPolicy().getSimpleName() + "/")
@@ -182,7 +191,7 @@ public class FederatedCloudSimulation {
         simulation = new CloudSim(MIN_TIME_BETWEEN_EVENTS);
         CloudFederation federation = new CloudFederation(simulation,"Federal Universities of Brazil", 0L);
         OptionalLong lineLimit = universities.stream().mapToLong(university -> universities.size() * ((long) university.numberOfUsers() * university.BoTsPerUser()) + university.id()).max();
-        bagOfTasksList = BotFileReader.readBoTFile(BOT_CSV_FILE.getFile(), lineLimit.isPresent() ? lineLimit.getAsLong() : null);
+            bagOfTasksList = BotFileReader.readBoTFile(BOT_CSV_FILE.getFile(), lineLimit.isPresent() ? lineLimit.getAsLong() : null);
         universities.forEach(university -> {
             FederationMember federationMember = new FederationMember(university.name(), university.abbreviation(),
                 university.id(), federation, university.coordinates());
@@ -269,11 +278,10 @@ public class FederatedCloudSimulation {
 
         // dados de execução de cada host de cada datacenter
         List<Records.HostAverageCpuUsage> hostAverageCpuUsageFullList = new ArrayList<>();
-        federation.getAllDatacenters().stream().forEach(datacenter ->
+        federation.getAllDatacenters().stream().parallel().forEach(datacenter ->
         {
 
-            List<Records.HostAverageCpuUsage> currentDatacenterHostAverageCpuUsage = new ArrayList<>();
-            datacenter.getHostList().stream().forEach(host -> {
+            List<Records.HostAverageCpuUsage> currentDatacenterHostAverageCpuUsage = datacenter.getHostList().stream().parallel().map(host -> {
 
 
                 double totalUsage = 0.0;
@@ -281,39 +289,44 @@ public class FederatedCloudSimulation {
 
 
                 List<HostStateHistoryEntry> history = host.getStateHistory();
-
+                double previousTime = 0;
                 for (int i = 0; i < history.size(); i++) {
                     HostStateHistoryEntry currentEntry = history.get(i);
 
-                    // evitar acessar index negativo
-                    double previousTime = (i == 0) ? 0 : history.get(i - 1).getTime();
+
 
                     double timeDifference = currentEntry.getTime() - previousTime;
+                    if(timeDifference < 0.1){
+                        continue;
+                    }
 
                     // Calculo da média ponderada
                     double cpuUsage = currentEntry.getAllocatedMips() / host.getTotalMipsCapacity();
                     totalUsage += cpuUsage * timeDifference;
                     totalTime += timeDifference;
+                    previousTime = currentEntry.getTime();
                 }
 
-                Records.HostAverageCpuUsage hostAverageCpuUsage = new Records.HostAverageCpuUsage(host,
+                 return  new Records.HostAverageCpuUsage(host,
                     totalTime > 0 ? totalUsage / totalTime : 0);
 
-                currentDatacenterHostAverageCpuUsage.add(hostAverageCpuUsage);
-                hostAverageCpuUsageFullList.add(hostAverageCpuUsage);
-
-                writeHostTimelineCsv(simulationInstanceResultPath, showOnStdout, host);
+//                writeHostTimelineCsv(simulationInstanceResultPath, showOnStdout, host);
 
 
-            });
-            try {
-                writeHostAverageUsageCsv(getDatacenterHostAverageCpuUsagePrintStream(datacenter, simulationInstanceResultPath), false, currentDatacenterHostAverageCpuUsage);
-            } catch (FileNotFoundException e) {
-                throw new RuntimeException(e);
-            }
+            }).toList();
+            datacenter.setAverageCpuUsage(currentDatacenterHostAverageCpuUsage.stream().mapToDouble(Records.HostAverageCpuUsage::averageCpuUsage).average().orElse(0));
+            hostAverageCpuUsageFullList.addAll(currentDatacenterHostAverageCpuUsage);
+//            try {
+//                writeHostAverageUsageCsv(getDatacenterHostAverageCpuUsagePrintStream(datacenter,
+//                    simulationInstanceResultPath), false, currentDatacenterHostAverageCpuUsage);
+//            } catch (FileNotFoundException e) {
+//                throw new RuntimeException(e);
+//            }
 
         });
-        writeHostAverageUsageCsv(getFullHostAverageCpuUsagePrintStream(simulationInstanceResultPath), false, hostAverageCpuUsageFullList);
+        writeHostAverageUsageCsv(getFullHostAverageCpuUsagePrintStream(simulationInstanceResultPath),
+            false,
+            hostAverageCpuUsageFullList);
 
 
     }
@@ -502,9 +515,20 @@ public class FederatedCloudSimulation {
                 host.setName(datacenterName + "_host_" + currentHost);
                 hostList.add(host);
             }
-//
-            FederatedVmAllocationPolicyAbstract allocationPolicyInstance = allocationPolicy.getConstructor(FederationMember.class, CloudFederation.class).newInstance(federationMember, federationMember.getFederation());
-            FederatedDatacenter federatedDatacenter = new FederatedDatacenter(simulation, hostList, allocationPolicyInstance,
+             FederatedVmAllocationPolicyAbstract allocationPolicyInstance;
+            if((allocationPolicy == FederatedVmAllocationPolicyRandom.class) ||
+                (allocationPolicy == FederatedVmAllocationPolicyLocalFirstRandom.class)){
+                allocationPolicyInstance = new FederatedVmAllocationPolicyRandom(federationMember,
+                    federationMember.getFederation(),
+                    new UniformDistr());
+            }
+            else{
+                allocationPolicyInstance = allocationPolicy.getConstructor(FederationMember.class,
+                    CloudFederation.class).newInstance(federationMember, federationMember.getFederation());
+            }
+            FederatedDatacenter federatedDatacenter = new FederatedDatacenter(simulation,
+                hostList,
+                allocationPolicyInstance,
                 federationMember);
             federatedDatacenter.setName(datacenterName);
             datacenters.add(federatedDatacenter);

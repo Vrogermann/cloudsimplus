@@ -14,7 +14,7 @@ package org.cloudbus.cloudsim.hosts;
  * @author Anton Beloglazov
  * @since CloudSim Toolkit 2.1.2
  */
-public final class HostStateHistoryEntry {
+public final class  HostStateHistoryEntry {
 
     /**
      * @see #getTime()

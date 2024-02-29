@@ -50,7 +50,15 @@ import static java.util.stream.Collectors.toList;
 
 public class FederatedDatacenter extends CloudSimEntity implements Datacenter {
 
+    public double getAverageCpuUsage() {
+        return averageCpuUsage;
+    }
 
+    public void setAverageCpuUsage(double averageCpuUsage) {
+        this.averageCpuUsage = averageCpuUsage;
+    }
+
+    private double averageCpuUsage;
     /**
      * The last time some Host on the Datacenter was under or overloaded.
      *

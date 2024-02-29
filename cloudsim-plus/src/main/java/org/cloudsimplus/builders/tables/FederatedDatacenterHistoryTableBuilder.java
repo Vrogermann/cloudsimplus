@@ -81,36 +81,7 @@ public class FederatedDatacenterHistoryTableBuilder extends TableBuilderAbstract
             (datacenter -> datacenter.getOwner().getBotsPerUser()));
 
         addColumnDataFunction(
-            getTable().addColumn("Average CPU Usage"),
-            (datacenter -> {
-                double totalUsage = 0.0;
-                double totalTime = 0;
-
-                for (Host host : datacenter.getHostList()) {
-                    List<HostStateHistoryEntry> history = host.getStateHistory();
-
-                    for (int i = 0; i < history.size(); i++) {
-                        HostStateHistoryEntry currentEntry = history.get(i);
-
-                        // evitar acessar index negativo
-                        double previousTime = (i == 0) ? 0 : history.get(i - 1).getTime();
-
-                        double timeDifference = currentEntry.getTime() - previousTime;
-
-                        // Calculo da média ponderada
-                        double cpuUsage = currentEntry.getAllocatedMips() / host.getTotalMipsCapacity();
-                        totalUsage += cpuUsage * timeDifference;
-                        totalTime += timeDifference;
-                    }
-                }
-
-                if (totalTime > 0) {
-                    return String.format("%.2f",totalUsage / totalTime).replace(',','.');
-                } else {
-                    return 0.0; // Evita divisão por zero
-                }
-            })
-        );
+            getTable().addColumn("Average CPU Usage"), (FederatedDatacenter::getAverageCpuUsage));
 
 
     }

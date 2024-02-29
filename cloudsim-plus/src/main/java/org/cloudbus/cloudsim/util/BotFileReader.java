@@ -66,7 +66,7 @@ public class BotFileReader {
 
 
         br.close();
-        result.sort(Comparator.comparingLong(BoT::getJobCreationTime));
+        result.sort(Comparator.comparingLong(BoT::getJobStartTime));
         return result;
     }
 
